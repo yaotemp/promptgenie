@@ -1,11 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
-// The payload type must implement `Serialize` and `Clone`.
-#[derive(Clone, serde::Serialize)]
-struct Payload {
-    message: String,
-}
 
 // 初始化数据库
 fn init_db(app: &tauri::AppHandle) {
