@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { XIcon, TagIcon, PlusIcon } from 'lucide-react';
-
-type Tag = {
-  id: string;
-  name: string;
-  color: string;
-};
-
-type Category = {
-  id: string;
-  name: string;
-};
+import { Tag, PromptInput } from '../services/db';
 
 type PromptEditorProps = {
   isOpen: boolean;
@@ -18,19 +8,16 @@ type PromptEditorProps = {
     id?: string;
     title: string;
     content: string;
-    category: string;
     tags: Tag[];
   };
-  categories: Category[];
   availableTags: Tag[];
   onClose: () => void;
-  onSave: (promptData: any) => void;
+  onSave: (promptData: PromptInput) => void;
 };
 
 const PromptEditor: React.FC<PromptEditorProps> = ({
   isOpen,
-  initialData = { title: '', content: '', category: '', tags: [] },
-  categories,
+  initialData = { title: '', content: '', tags: [] },
   availableTags,
   onClose,
   onSave
@@ -45,7 +32,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
 
   const handleTagToggle = (tag: Tag) => {
     const hasTag = promptData.tags.some(t => t.id === tag.id);
-    
+
     if (hasTag) {
       setPromptData(prev => ({
         ...prev,
@@ -61,7 +48,11 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(promptData);
+    onSave({
+      title: promptData.title,
+      content: promptData.content,
+      tags: promptData.tags
+    });
   };
 
   if (!isOpen) return null;
@@ -73,14 +64,14 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
           <h2 className="text-xl font-semibold text-gray-800">
             {initialData.id ? '编辑提示词' : '创建提示词'}
           </h2>
-          <button 
+          <button
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
             onClick={onClose}
           >
             <XIcon size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
           <div className="mb-5">
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -97,28 +88,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
               required
             />
           </div>
-          
-          <div className="mb-5">
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              分类
-            </label>
-            <select
-              id="category"
-              name="category"
-              value={promptData.category}
-              onChange={handleChange}
-              className="w-full px-4 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors appearance-none"
-              required
-            >
-              <option value="">选择分类...</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
+
           <div className="mb-5">
             <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
               提示词内容
@@ -133,7 +103,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
               required
             />
           </div>
-          
+
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">
@@ -148,16 +118,16 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                   <PlusIcon size={16} className="mr-1" />
                   添加标签
                 </button>
-                
+
                 {isTagMenuOpen && (
                   <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-2 max-h-60 overflow-y-auto">
                     {availableTags.map(tag => (
-                      <div 
+                      <div
                         key={tag.id}
                         className="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
                         onClick={() => handleTagToggle(tag)}
                       >
-                        <div 
+                        <div
                           className="w-3 h-3 rounded-full mr-2"
                           style={{ backgroundColor: tag.color }}
                         ></div>
@@ -171,7 +141,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                 )}
               </div>
             </div>
-            
+
             <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[44px]">
               {promptData.tags.length === 0 ? (
                 <div className="text-sm text-gray-400 flex items-center">
@@ -180,10 +150,10 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                 </div>
               ) : (
                 promptData.tags.map(tag => (
-                  <div 
-                    key={tag.id} 
+                  <div
+                    key={tag.id}
                     className="flex items-center px-3 py-1 rounded-full text-sm"
-                    style={{ 
+                    style={{
                       backgroundColor: `${tag.color}15`,
                       color: tag.color
                     }}
@@ -202,7 +172,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
             </div>
           </div>
         </form>
-        
+
         <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
           <button
             type="button"
