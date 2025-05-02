@@ -1,6 +1,7 @@
 import React from 'react';
 import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon } from 'lucide-react';
 import { Tag } from '../services/db';
+import { formatRelativeTime } from '../utils/time';
 
 type PromptCardProps = {
   id: string;
@@ -62,8 +63,8 @@ const PromptCard: React.FC<PromptCardProps> = ({
       </div>
 
       <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-        <div className="text-xs text-gray-500">
-          修改于 {dateModified}
+        <div className="text-xs text-gray-500" title={new Date(dateModified).toLocaleString()}>
+          修改于 {formatRelativeTime(dateModified)}
         </div>
 
         <div className="flex space-x-1">

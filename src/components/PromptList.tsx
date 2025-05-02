@@ -1,6 +1,7 @@
 import React from 'react';
-import { StarIcon, CopyIcon, PencilIcon, TagIcon, MoreHorizontalIcon, TrashIcon } from 'lucide-react';
+import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon } from 'lucide-react';
 import { Prompt } from '../services/db';
+import { formatRelativeTime } from '../utils/time';
 
 type PromptListProps = {
   prompts: Prompt[];
@@ -55,8 +56,8 @@ const PromptList: React.FC<PromptListProps> = ({
                   ))}
                 </div>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-500">
-                {prompt.dateModified}
+              <td className="px-6 py-4 text-sm text-gray-500" title={new Date(prompt.dateModified).toLocaleString()}>
+                {formatRelativeTime(prompt.dateModified)}
               </td>
               <td className="px-6 py-4 text-center">
                 <button
