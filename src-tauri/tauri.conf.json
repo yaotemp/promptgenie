@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "prompt_genie",
+  "productName": "提示器精灵",
   "version": "0.1.0",
   "identifier": "com.chriszou.prompt_genie",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "prompt_genie",
+        "title": "提示器精灵",
         "width": 800,
         "height": 600
       }
