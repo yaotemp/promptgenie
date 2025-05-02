@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::Manager;
+use tauri_plugin_sql::{Migration, MigrationKind};
 // The payload type must implement `Serialize` and `Clone`.
 #[derive(Clone, serde::Serialize)]
 struct Payload {
@@ -24,11 +25,22 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let migrations = vec![Migration {
+        version: 1,
+        description: "create_initial_tables",
+        sql: include_str!("../db/schema.sql"), // 直接包含 schema 文件内容
+        kind: MigrationKind::Up,
+    }];
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_sql::Builder::new().build())
+        .plugin(
+            tauri_plugin_sql::Builder::new()
+                .add_migrations("sqlite:promptgenie.db", migrations)
+                .build(),
+        )
         .setup(|app| {
-            // 初始化数据库
+            // 初始化数据库目录（如果需要）
             init_db(&app.handle());
             Ok(())
         })

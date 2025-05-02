@@ -33,8 +33,6 @@
     ]
   },
   "plugins": {
-    "sql": {
-      "schema": "./db/schema.sql"
-    }
+    "sql": { }
   }
 }
