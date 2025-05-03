@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v7 as uuidv7 } from 'uuid';
 import Database from '@tauri-apps/plugin-sql';
 import { appLocalDataDir } from '@tauri-apps/api/path';
 
@@ -182,12 +182,13 @@ async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]>
         foundInDb = true;
       } else {
         // 3. 如果都找不到，创建新标签 (在主事务外)
-        tagId = uuidv4();
+        const newTagId = uuidv7(); // Use a new constant for the generated ID
+        tagId = newTagId; // Assign the new ID to the outer variable
         existingColor = tag.color; // 使用来自 UI 的随机颜色
         try {
           await currentDb.execute(
-            `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`, // <<< 单独执行插入
-            [tagId, tag.name, existingColor]
+            `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`,
+            [tagId, tag.name, existingColor] // Use tagId here (which now holds the v7 UUID)
           );
           foundInDb = true;
         } catch (insertError: any) {
@@ -229,7 +230,7 @@ async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]>
 export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   const currentDb = await ensureDbInitialized();
   const now = new Date().toISOString();
-  const id = uuidv4(); // 生成 Prompt ID
+  const id = uuidv7(); // 生成 Prompt ID
   let transactionStarted = false;
 
   try {

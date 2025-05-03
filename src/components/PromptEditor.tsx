@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore
 import { XIcon, TagIcon, PlusIcon } from 'lucide-react';
 import { Tag, PromptInput } from '../services/db';
-import { v4 as uuidv4 } from 'uuid';
+import { v7 as uuidv7 } from 'uuid';
 
 type PromptEditorProps = {
   isOpen: boolean;
@@ -61,7 +61,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
 
     // 创建新标签
     const newTag: Tag = {
-      id: uuidv4(),
+      id: uuidv7(),
       name: newTagName.trim(),
       color: getRandomColor()
     };
