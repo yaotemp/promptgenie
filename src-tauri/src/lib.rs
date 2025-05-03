@@ -1,4 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use tauri::menu::{MenuBuilder, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
@@ -22,8 +24,8 @@ fn greet(name: &str) -> String {
 pub fn run() {
     let migrations = vec![Migration {
         version: 1,
-        description: "create_initial_tables",
-        sql: include_str!("../db/schema.sql"), // 直接包含 schema 文件内容
+        description: "create initial tables",
+        sql: include_str!("../db/schema.sql"),
         kind: MigrationKind::Up,
     }];
 
@@ -37,6 +39,21 @@ pub fn run() {
         .setup(|app| {
             // 初始化数据库目录（如果需要）
             init_db(&app.handle());
+
+            // 创建托盘菜单
+            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let tray_menu = MenuBuilder::new(app).items(&[&quit]).build()?;
+
+            // 创建并配置系统托盘
+            TrayIconBuilder::new()
+                .menu(&tray_menu)
+                .on_menu_event(|_app, event| {
+                    if event.id().0 == "quit" {
+                        std::process::exit(0);
+                    }
+                })
+                .build(app)?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![greet])

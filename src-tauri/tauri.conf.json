@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "提示器精灵",
   "version": "0.1.0",
-  "identifier": "com.chriszou.prompt_genie",
+  "identifier": "com.chriszou.promptgenie",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
