@@ -105,7 +105,9 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
-      <Sidebar />
+      <Sidebar
+        onNewPrompt={() => handleEditorOpen()}
+      />
 
       <MainContent
         title="所有提示词"

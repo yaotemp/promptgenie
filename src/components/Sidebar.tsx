@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+// @ts-ignore
 import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon, SearchIcon } from 'lucide-react';
 import { getAllTags, Tag } from '../services/db'; // 引入获取标签的函数和类型
+
+type SidebarProps = {
+  onNewPrompt: () => void;
+};
 
 type SidebarItemProps = {
   icon: React.ReactNode;
@@ -8,11 +13,15 @@ type SidebarItemProps = {
   active?: boolean;
   count?: number;
   tagColor?: string; // 添加标签颜色属性
+  onClick?: () => void; // 添加点击事件处理函数
 };
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active = false, count, tagColor }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active = false, count, tagColor, onClick }) => {
   return (
-    <li className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}>
+    <li
+      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
+      onClick={onClick}
+    >
       <div className="flex items-center flex-1">
         {/* 如果是标签，显示颜色标记 */}
         {tagColor && <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: tagColor }}></span>}
@@ -28,7 +37,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active = false, 
   );
 };
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
 
@@ -68,7 +77,10 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div className="mb-6">
-          <button className="w-full flex items-center justify-center py-2 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-150 shadow-sm">
+          <button
+            className="w-full flex items-center justify-center py-2 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-150 shadow-sm"
+            onClick={onNewPrompt}
+          >
             <PlusCircleIcon size={18} className="mr-2" />
             <span className="text-sm font-medium">新建提示词</span>
           </button>
