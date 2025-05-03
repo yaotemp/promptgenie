@@ -181,26 +181,22 @@ async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]>
         foundInDb = true;
       } else {
         // 3. 如果都找不到，创建新标签
-        const newTagId = uuidv7();
-        tagId = newTagId;
-        existingColor = tag.color; // 使用来自 UI 的随机颜色
+        tagId = uuidv7();
+        existingColor = tag.color;
         try {
-          // --- 内部事务：仅用于创建单个新标签 ---
-          await currentDb.execute('BEGIN TRANSACTION');
+          // 执行单个 INSERT，不再需要内部事务
+          // await currentDb.execute('BEGIN TRANSACTION');
           await currentDb.execute(
             `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`,
             [tagId, tag.name, existingColor]
           );
-          await currentDb.execute('COMMIT');
-          // --- 内部事务结束 ---
+          // await currentDb.execute('COMMIT');
           foundInDb = true;
         } catch (insertError: any) {
-          // 数据库会自动回滚内部事务
+          // 数据库错误（例如唯一约束）
           console.error(`创建标签 ${tag.name} 失败:`, insertError);
-          // 检查是否是唯一约束冲突
           if (insertError.message && insertError.message.includes('UNIQUE constraint failed: tags.name')) {
             console.warn(`创建标签 ${tag.name} 时发生并发冲突，重新按名称查找...`);
-            // 事务已自动回滚，重新查找以获取由其他进程创建的标签
             const retryFind = await currentDb.select<any[]>(
               `SELECT id, color FROM tags WHERE name = $1`, [tag.name]
             );
@@ -224,11 +220,14 @@ async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]>
 
     // 4. 收集结果
     if (tagId && foundInDb) {
-      finalTags.push({ id: tagId, name: tag.name, color: existingColor || tag.color });
+      const finalTag = { id: tagId, name: tag.name, color: existingColor || tag.color };
+      finalTags.push(finalTag);
+      console.log(`[ensureTagsExist] Added tag to final list:`, finalTag);
     } else {
       console.error(`最终未能处理标签: ${JSON.stringify(tag)}`);
     }
   }
+  console.log('[ensureTagsExist] Returning finalTags:', finalTags);
   return finalTags;
 }
 
@@ -239,19 +238,16 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   const promptId = uuidv7();
 
   try {
-    // 1. 确保标签存在（在 try 块内，但在主事务外）
+    // 1. 确保标签存在（包含内部处理创建）
     const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
 
-    // 2. 开始主事务处理 Prompt 创建和关联
-    await currentDb.execute('BEGIN TRANSACTION');
-
-    // 3. 插入 prompts 表
+    // 2. 插入 prompts 表 (无事务)
     await currentDb.execute(
       `INSERT INTO prompts (id, title, content, is_favorite, created_at, updated_at) VALUES ($1, $2, $3, 0, $4, $5)`,
       [promptId, promptData.title, promptData.content, now, now]
     );
 
-    // 4. 插入标签关联
+    // 3. 插入标签关联 (无事务)
     for (const tag of ensuredTags) {
       await currentDb.execute(
         `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
@@ -259,10 +255,7 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
       );
     }
 
-    // 5. 提交主事务
-    await currentDb.execute('COMMIT');
-
-    // 6. 构建并返回结果
+    // 4. 构建并返回结果
     return {
       id: promptId,
       title: promptData.title,
@@ -273,9 +266,7 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
       tags: ensuredTags
     };
 
-  } catch (error: any) { // Type error as any to access stack
-    // 如果错误发生在 ensureTagsExist，事务不会开始
-    // 如果错误发生在主事务内，数据库会自动回滚
+  } catch (error: any) {
     console.error("Error during prompt creation process (original error):", error);
     if (error && error.stack) {
       console.error("Stack trace:", error.stack);
@@ -290,31 +281,28 @@ export async function updatePrompt(id: string, promptData: PromptInput): Promise
   const now = new Date().toISOString();
 
   try {
-    // 1. 确保标签存在（在 try 块内，但在主事务外）
+    // 1. 确保标签存在（包含内部处理创建）
     const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
 
-    // 2. 开始主事务处理 Prompt 更新和关联
-    await currentDb.execute('BEGIN TRANSACTION');
-
-    // 3. 获取原始提示词数据
+    // 2. 获取原始提示词数据 (需要先获取才能返回完整对象)
     const originalPromptResult = await currentDb.select<any[]>(
       `SELECT is_favorite, created_at FROM prompts WHERE id = $1`, [id]
     );
     if (originalPromptResult.length === 0) {
-      throw new Error(`更新时未找到提示词 ${id}`); // 抛出错误，事务会自动回滚
+      throw new Error(`更新时未找到提示词 ${id}`);
     }
     const { is_favorite, created_at } = originalPromptResult[0];
 
-    // 4. 更新 prompts 表
+    // 3. 更新 prompts 表 (无事务)
     await currentDb.execute(
       `UPDATE prompts SET title = $1, content = $2, updated_at = $3 WHERE id = $4`,
       [promptData.title, promptData.content, now, id]
     );
 
-    // 5. 删除旧的标签关联
+    // 4. 删除旧的标签关联 (无事务)
     await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
 
-    // 6. 插入新的标签关联
+    // 5. 插入新的标签关联 (无事务)
     for (const tag of ensuredTags) {
       await currentDb.execute(
         `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
@@ -322,10 +310,7 @@ export async function updatePrompt(id: string, promptData: PromptInput): Promise
       );
     }
 
-    // 7. 提交主事务
-    await currentDb.execute('COMMIT');
-
-    // 8. 构建并返回结果
+    // 6. 构建并返回结果
     return {
       id,
       title: promptData.title,
@@ -336,9 +321,7 @@ export async function updatePrompt(id: string, promptData: PromptInput): Promise
       tags: ensuredTags
     };
 
-  } catch (error: any) { // Type error as any to access stack
-    // 如果错误发生在 ensureTagsExist，事务不会开始
-    // 如果错误发生在主事务内，数据库会自动回滚
+  } catch (error: any) {
     console.error("Error during prompt update process (original error):", error);
     if (error && error.stack) {
       console.error("Stack trace:", error.stack);
@@ -369,14 +352,13 @@ export async function toggleFavorite(id: string): Promise<boolean> {
   const currentDb = await ensureDbInitialized();
 
   try {
-    await currentDb.execute('BEGIN TRANSACTION');
-
+    // 不需要事务，查询和更新是独立操作
     const result = await currentDb.select<any[]>(
       `SELECT is_favorite FROM prompts WHERE id = $1`, [id]
     );
     if (result.length === 0) {
-      await currentDb.execute('ROLLBACK');
-      return false;
+      console.warn(`ToggleFavorite: Prompt with id ${id} not found.`);
+      return false; // 或者抛出错误，取决于期望的行为
     }
 
     const newValue = result[0].is_favorite === 1 ? 0 : 1;
@@ -384,15 +366,9 @@ export async function toggleFavorite(id: string): Promise<boolean> {
       `UPDATE prompts SET is_favorite = $1 WHERE id = $2`, [newValue, id]
     );
 
-    await currentDb.execute('COMMIT');
     return newValue === 1;
-  } catch (error: any) { // Type error as any to access stack
-    try {
-      // 确保回滚事务 (这里仍然需要，因为有显式 BEGIN)
-      await currentDb.execute('ROLLBACK');
-    } catch (rollbackError) {
-      console.error("回滚事务失败:", rollbackError);
-    }
+  } catch (error: any) {
+    // 不需要 ROLLBACK，因为没有显式 BEGIN
     console.error("切换收藏状态失败:", error);
     if (error && error.stack) {
       console.error("Stack trace:", error.stack);
