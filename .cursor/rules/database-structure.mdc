@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.rs,*.js,*.ts
 alwaysApply: false
 ---
 # 数据库结构

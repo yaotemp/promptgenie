@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.tsx,*.ts,*.js
 alwaysApply: false
 ---
 # 标签系统

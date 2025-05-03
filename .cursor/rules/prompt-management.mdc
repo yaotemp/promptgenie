@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.ts,*.js,*.tsx
 alwaysApply: false
 ---
 # 提示词管理

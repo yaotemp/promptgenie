@@ -1,6 +1,6 @@
 ---
 description: 
-globs: 
+globs: *.tsx,*.js,*.ts
 alwaysApply: false
 ---
 # UI 组件
