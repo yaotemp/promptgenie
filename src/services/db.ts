@@ -56,11 +56,41 @@ export function initDatabase(): Promise<Database> {
 
 // 辅助函数：确保数据库已初始化
 async function ensureDbInitialized(): Promise<Database> {
-  if (!db) {
-    // 如果 db 未设置，等待初始化完成
-    return await initDatabase();
+  let retries = 3; // 最多重试3次
+
+  while (retries > 0) {
+    try {
+      if (!db) {
+        // 如果 db 未设置，等待初始化完成
+        db = await initDatabase();
+      }
+
+      // 验证连接是否可用
+      try {
+        await db.execute('SELECT 1');
+      } catch (connError) {
+        console.warn('数据库连接不可用，尝试重新初始化...', connError);
+        db = null; // 重置连接
+        throw connError; // 让外层 catch 处理重试
+      }
+
+      return db;
+    } catch (err) {
+      retries--;
+      if (retries <= 0) {
+        console.error('数据库初始化重试失败:', err);
+        throw new Error('数据库连接失败，请重启应用');
+      }
+
+      console.warn(`数据库初始化失败，剩余重试次数: ${retries}`);
+      // 等待短暂时间后重试
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 清除当前失败的初始化 Promise
+      initPromise = null;
+    }
   }
-  return db;
+
+  throw new Error('数据库连接失败'); // 不应该到达这里，但为了 TypeScript 类型检查
 }
 
 // 获取所有提示词
@@ -124,9 +154,10 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   const now = new Date().toISOString();
   const id = uuidv4();
 
-  await currentDb.execute('BEGIN TRANSACTION');
-  let finalTags: Tag[] = [];
   try {
+    await currentDb.execute('BEGIN TRANSACTION');
+    let finalTags: Tag[] = [];
+
     await currentDb.execute(
       `INSERT INTO prompts (id, title, content, is_favorite, created_at, updated_at) VALUES ($1, $2, $3, 0, $4, $5)`,
       [id, promptData.title, promptData.content, now, now]
@@ -173,7 +204,12 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
       tags: finalTags // Use the tags with updated IDs
     };
   } catch (error) {
-    await currentDb.execute('ROLLBACK');
+    try {
+      // 确保回滚事务
+      await currentDb.execute('ROLLBACK');
+    } catch (rollbackError) {
+      console.error("回滚事务失败:", rollbackError);
+    }
     console.error("Error creating prompt:", error);
     throw error;
   }
@@ -183,10 +219,11 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
 export async function updatePrompt(id: string, promptData: PromptInput): Promise<Prompt> {
   const currentDb = await ensureDbInitialized();
   const now = new Date().toISOString();
-
-  await currentDb.execute('BEGIN TRANSACTION');
   let finalTags: Tag[] = [];
+
   try {
+    await currentDb.execute('BEGIN TRANSACTION');
+
     await currentDb.execute(
       `UPDATE prompts SET title = $1, content = $2, updated_at = $3 WHERE id = $4`,
       [promptData.title, promptData.content, now, id]
@@ -225,11 +262,17 @@ export async function updatePrompt(id: string, promptData: PromptInput): Promise
 
     await currentDb.execute('COMMIT');
 
-    const updated = await getPrompt(id); // getPrompt uses ensureDbInitialized internally
+    // 确保事务已完成后再读取更新后的数据
+    const updated = await getPrompt(id);
     if (!updated) throw new Error(`提示词 ${id} 未找到`);
     return updated;
   } catch (error) {
-    await currentDb.execute('ROLLBACK');
+    try {
+      // 确保回滚事务
+      await currentDb.execute('ROLLBACK');
+    } catch (rollbackError) {
+      console.error("回滚事务失败:", rollbackError);
+    }
     console.error("Error updating prompt:", error);
     throw error;
   }
@@ -238,14 +281,20 @@ export async function updatePrompt(id: string, promptData: PromptInput): Promise
 // 删除提示词
 export async function deletePrompt(id: string): Promise<boolean> {
   const currentDb = await ensureDbInitialized();
-  await currentDb.execute('BEGIN TRANSACTION');
+
   try {
+    await currentDb.execute('BEGIN TRANSACTION');
     await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
     await currentDb.execute(`DELETE FROM prompts WHERE id = $1`, [id]);
     await currentDb.execute('COMMIT');
     return true;
   } catch (error) {
-    await currentDb.execute('ROLLBACK');
+    try {
+      // 确保回滚事务
+      await currentDb.execute('ROLLBACK');
+    } catch (rollbackError) {
+      console.error("回滚事务失败:", rollbackError);
+    }
     console.error("Error deleting prompt:", error);
     throw error;
   }
@@ -254,16 +303,35 @@ export async function deletePrompt(id: string): Promise<boolean> {
 // 切换收藏状态
 export async function toggleFavorite(id: string): Promise<boolean> {
   const currentDb = await ensureDbInitialized();
-  const result = await currentDb.select<any[]>(
-    `SELECT is_favorite FROM prompts WHERE id = $1`, [id]
-  );
-  if (result.length === 0) return false;
 
-  const newValue = result[0].is_favorite === 1 ? 0 : 1;
-  await currentDb.execute(
-    `UPDATE prompts SET is_favorite = $1 WHERE id = $2`, [newValue, id]
-  );
-  return newValue === 1;
+  try {
+    await currentDb.execute('BEGIN TRANSACTION');
+
+    const result = await currentDb.select<any[]>(
+      `SELECT is_favorite FROM prompts WHERE id = $1`, [id]
+    );
+    if (result.length === 0) {
+      await currentDb.execute('ROLLBACK');
+      return false;
+    }
+
+    const newValue = result[0].is_favorite === 1 ? 0 : 1;
+    await currentDb.execute(
+      `UPDATE prompts SET is_favorite = $1 WHERE id = $2`, [newValue, id]
+    );
+
+    await currentDb.execute('COMMIT');
+    return newValue === 1;
+  } catch (error) {
+    try {
+      // 确保回滚事务
+      await currentDb.execute('ROLLBACK');
+    } catch (rollbackError) {
+      console.error("回滚事务失败:", rollbackError);
+    }
+    console.error("切换收藏状态失败:", error);
+    throw error;
+  }
 }
 
 // 获取所有标签
