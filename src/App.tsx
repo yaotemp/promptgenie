@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// import { confirm } from '@tauri-apps/plugin-dialog'; // 不再需要 Tauri 对话框
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
