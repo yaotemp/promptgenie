@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, Tag } from './services/db';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -10,21 +10,6 @@ function App() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // 可用标签数据 (可以考虑也从数据库加载)
-  const availableTags: Tag[] = [
-    { id: '1', name: '营销', color: '#3B82F6' },
-    { id: '2', name: '专业', color: '#10B981' },
-    { id: '3', name: 'React', color: '#8B5CF6' },
-    { id: '4', name: 'TypeScript', color: '#EC4899' },
-    { id: '5', name: 'UI设计', color: '#F59E0B' },
-    { id: '6', name: '规范', color: '#6366F1' },
-    { id: '7', name: '数据', color: '#EF4444' },
-    { id: '8', name: '报告', color: '#14B8A6' },
-    { id: '9', name: '电商', color: '#9333EA' },
-    { id: '10', name: 'AI绘画', color: '#8B5CF6' },
-    { id: '11', name: '创意', color: '#F97316' }
-  ];
 
   // 初始化数据库并加载提示词
   useEffect(() => {
@@ -157,7 +142,6 @@ function App() {
           content: '',
           tags: []
         }}
-        availableTags={availableTags}
         onClose={handleEditorClose}
         onSave={handleSavePrompt}
       />

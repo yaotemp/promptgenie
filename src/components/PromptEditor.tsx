@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+// @ts-ignore
 import { XIcon, TagIcon, PlusIcon } from 'lucide-react';
 import { Tag, PromptInput } from '../services/db';
+import { v4 as uuidv4 } from 'uuid';
 
 type PromptEditorProps = {
   isOpen: boolean;
@@ -10,7 +12,6 @@ type PromptEditorProps = {
     content: string;
     tags: Tag[];
   };
-  availableTags: Tag[];
   onClose: () => void;
   onSave: (promptData: PromptInput) => void;
 };
@@ -18,16 +19,36 @@ type PromptEditorProps = {
 const PromptEditor: React.FC<PromptEditorProps> = ({
   isOpen,
   initialData = { title: '', content: '', tags: [] },
-  availableTags,
   onClose,
   onSave
 }) => {
   const [promptData, setPromptData] = useState(initialData);
-  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
+  // 预定义的颜色列表
+  const colorOptions = [
+    '#3B82F6', // 蓝色
+    '#10B981', // 绿色
+    '#8B5CF6', // 紫色
+    '#EC4899', // 粉色
+    '#F59E0B', // 橙色
+    '#6366F1', // 靛蓝色
+    '#EF4444', // 红色
+    '#14B8A6', // 青色
+    '#9333EA', // 深紫色
+    '#F97316', // 深橙色
+  ];
+
+  // 获取随机颜色
+  const getRandomColor = () => {
+    const randomIndex = Math.floor(Math.random() * colorOptions.length);
+    return colorOptions[randomIndex];
+  };
 
   useEffect(() => {
     setPromptData(initialData);
-    setIsTagMenuOpen(false);
+    setNewTagName('');
   }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -35,20 +56,34 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
     setPromptData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTagToggle = (tag: Tag) => {
-    const hasTag = promptData.tags.some(t => t.id === tag.id);
+  const handleAddTag = () => {
+    if (!newTagName.trim()) return;
 
-    if (hasTag) {
-      setPromptData(prev => ({
-        ...prev,
-        tags: prev.tags.filter(t => t.id !== tag.id)
-      }));
-    } else {
-      setPromptData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tag]
-      }));
+    // 创建新标签
+    const newTag: Tag = {
+      id: uuidv4(),
+      name: newTagName.trim(),
+      color: getRandomColor()
+    };
+
+    // 添加到标签列表
+    setPromptData(prev => ({
+      ...prev,
+      tags: [...prev.tags, newTag]
+    }));
+
+    // 清空输入
+    setNewTagName('');
+    if (tagInputRef.current) {
+      tagInputRef.current.focus();
     }
+  };
+
+  const handleRemoveTag = (tagId: string) => {
+    setPromptData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag.id !== tagId)
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -110,41 +145,33 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
           </div>
 
           <div className="mb-5">
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">
-                标签
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-700"
-                  onClick={() => setIsTagMenuOpen(!isTagMenuOpen)}
-                >
-                  <PlusIcon size={16} className="mr-1" />
-                  添加标签
-                </button>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              标签
+            </label>
 
-                {isTagMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-2 max-h-60 overflow-y-auto">
-                    {availableTags.map(tag => (
-                      <div
-                        key={tag.id}
-                        className="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
-                        onClick={() => handleTagToggle(tag)}
-                      >
-                        <div
-                          className="w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: tag.color }}
-                        ></div>
-                        <span className="text-sm text-gray-700">{tag.name}</span>
-                        {promptData.tags.some(t => t.id === tag.id) && (
-                          <span className="ml-auto text-blue-600">✓</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="flex mb-2">
+              <input
+                type="text"
+                ref={tagInputRef}
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                className="flex-1 px-4 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors"
+                placeholder="输入新标签..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="ml-2 px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                添加
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[44px]">
@@ -167,7 +194,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                     <button
                       type="button"
                       className="ml-1 p-0.5 rounded-full hover:bg-white hover:bg-opacity-30"
-                      onClick={() => handleTagToggle(tag)}
+                      onClick={() => handleRemoveTag(tag.id)}
                     >
                       <XIcon size={14} />
                     </button>

@@ -215,63 +215,144 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   }
 }
 
+// 辅助函数：预处理标签，确保它们存在于数据库中，并返回最终的标签列表
+async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]> {
+  const finalTags: Tag[] = [];
+  for (const tag of tags) {
+    let tagId: string | undefined = tag.id;
+    let existingColor: string | undefined;
+    let foundInDb = false;
+
+    // 1. 按 ID 查找
+    if (tagId) {
+      const byId = await currentDb.select<any[]>(
+        `SELECT id, color FROM tags WHERE id = $1`, [tagId]
+      );
+      if (byId.length > 0) {
+        existingColor = byId[0].color;
+        foundInDb = true;
+      } else {
+        console.warn(`提供的标签 ID ${tagId} 未找到，将按名称查找...`);
+        tagId = undefined; // ID 无效，清除它
+      }
+    }
+
+    // 2. 如果没有有效 ID，按名称查找
+    if (!foundInDb) {
+      const byName = await currentDb.select<any[]>(
+        `SELECT id, color FROM tags WHERE name = $1`, [tag.name]
+      );
+      if (byName.length > 0) {
+        tagId = byName[0].id;
+        existingColor = byName[0].color;
+        foundInDb = true;
+      } else {
+        // 3. 如果都找不到，创建新标签 (在主事务外)
+        tagId = uuidv4();
+        existingColor = tag.color; // 使用来自 UI 的随机颜色
+        try {
+          await currentDb.execute(
+            `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`, // <<< 单独执行插入
+            [tagId, tag.name, existingColor]
+          );
+          foundInDb = true;
+        } catch (insertError: any) {
+          // 处理可能的并发插入冲突 (例如 UNIQUE constraint failed)
+          if (insertError.message && insertError.message.includes('UNIQUE constraint failed: tags.name')) {
+            console.warn(`尝试创建标签 ${tag.name} 时发生并发冲突，重新按名称查找...`);
+            // 重新查找，因为另一个进程可能刚刚创建了它
+            const retryFind = await currentDb.select<any[]>(
+              `SELECT id, color FROM tags WHERE name = $1`, [tag.name]
+            );
+            if (retryFind.length > 0) {
+              tagId = retryFind[0].id;
+              existingColor = retryFind[0].color;
+              foundInDb = true;
+            } else {
+              console.error(`并发冲突后仍未能找到或创建标签 ${tag.name}`);
+              // 跳过此标签或抛出错误，根据需求决定
+              continue;
+            }
+          } else {
+            // 其他插入错误，重新抛出
+            throw insertError;
+          }
+        }
+      }
+    }
+
+    // 4. 收集结果
+    if (tagId && foundInDb) {
+      finalTags.push({ id: tagId, name: tag.name, color: existingColor || tag.color });
+    } else {
+      console.error(`最终未能处理标签: ${JSON.stringify(tag)}`);
+    }
+  }
+  return finalTags;
+}
+
 // 更新提示词
 export async function updatePrompt(id: string, promptData: PromptInput): Promise<Prompt> {
   const currentDb = await ensureDbInitialized();
   const now = new Date().toISOString();
-  let finalTags: Tag[] = [];
+  let transactionStarted = false;
 
   try {
-    await currentDb.execute('BEGIN TRANSACTION');
+    // 1. 预处理标签（在事务外）
+    const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
 
+    // 2. 开始主事务
+    await currentDb.execute('BEGIN TRANSACTION');
+    transactionStarted = true;
+
+    // 3. 获取原始提示词数据 (需要在事务内以保证一致性)
+    const originalPrompt = await currentDb.select<any[]>(
+      `SELECT is_favorite, created_at FROM prompts WHERE id = $1`, [id]
+    );
+    if (originalPrompt.length === 0) {
+      throw new Error(`更新时未找到提示词 ${id}`);
+    }
+    const { is_favorite, created_at } = originalPrompt[0];
+
+    // 4. 更新 prompts 表
     await currentDb.execute(
       `UPDATE prompts SET title = $1, content = $2, updated_at = $3 WHERE id = $4`,
       [promptData.title, promptData.content, now, id]
     );
 
+    // 5. 删除旧的标签关联
     await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
 
-    for (const tag of promptData.tags) {
-      let tagId = tag.id;
-      let finalTag = { ...tag };
-
-      if (!tagId) {
-        const existingTags = await currentDb.select<any[]>(
-          `SELECT id FROM tags WHERE name = $1`, [tag.name]
-        );
-
-        if (existingTags.length > 0) {
-          tagId = existingTags[0].id;
-        } else {
-          tagId = uuidv4();
-          await currentDb.execute(
-            `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`,
-            [tagId, tag.name, tag.color]
-          );
-        }
-        finalTag.id = tagId;
-      }
-
-      finalTags.push(finalTag);
-
+    // 6. 插入新的标签关联 (使用已确保存在的标签 ID)
+    for (const tag of ensuredTags) {
       await currentDb.execute(
         `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
-        [id, tagId]
+        [id, tag.id]
       );
     }
 
+    // 7. 提交事务
     await currentDb.execute('COMMIT');
+    transactionStarted = false;
 
-    // 确保事务已完成后再读取更新后的数据
-    const updated = await getPrompt(id);
-    if (!updated) throw new Error(`提示词 ${id} 未找到`);
-    return updated;
+    // 8. 直接构建并返回结果
+    return {
+      id,
+      title: promptData.title,
+      content: promptData.content,
+      isFavorite: is_favorite === 1,
+      dateCreated: created_at,
+      dateModified: now,
+      tags: ensuredTags // 使用预处理后的标签列表
+    };
+
   } catch (error) {
-    try {
-      // 确保回滚事务
-      await currentDb.execute('ROLLBACK');
-    } catch (rollbackError) {
-      console.error("回滚事务失败:", rollbackError);
+    if (transactionStarted) {
+      try {
+        await currentDb.execute('ROLLBACK');
+      } catch (rollbackError) {
+        console.error("回滚事务失败:", rollbackError);
+      }
     }
     console.error("Error updating prompt:", error);
     throw error;
