@@ -59,17 +59,16 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
   const handleAddTag = () => {
     if (!newTagName.trim()) return;
 
-    // 创建新标签
-    const newTag: Tag = {
-      id: uuidv7(),
+    // 创建新标签 (不生成前端 ID)
+    const newTag = {
       name: newTagName.trim(),
       color: getRandomColor()
     };
 
-    // 添加到标签列表
+    // 添加到标签列表 (需要断言类型，因为缺少 id)
     setPromptData(prev => ({
       ...prev,
-      tags: [...prev.tags, newTag]
+      tags: [...prev.tags, newTag as Tag] // 断言为 Tag 类型以匹配状态
     }));
 
     // 清空输入
