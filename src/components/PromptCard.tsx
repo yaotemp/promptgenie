@@ -1,4 +1,5 @@
 import React from 'react';
+// @ts-ignore
 import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon } from 'lucide-react';
 import { Tag } from '../services/db';
 import { formatRelativeTime } from '../utils/time';
@@ -9,7 +10,6 @@ type PromptCardProps = {
   content: string;
   tags: Tag[];
   isFavorite: boolean;
-  dateCreated: string;
   dateModified: string;
   onFavoriteToggle: (id: string) => void;
   onCopy: (id: string) => void;
@@ -23,7 +23,6 @@ const PromptCard: React.FC<PromptCardProps> = ({
   content,
   tags,
   isFavorite,
-  dateCreated,
   dateModified,
   onFavoriteToggle,
   onCopy,
