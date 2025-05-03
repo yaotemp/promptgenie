@@ -7,29 +7,58 @@ type SidebarProps = {
   onNewPrompt: () => void;
 };
 
-type SidebarItemProps = {
-  icon: React.ReactNode;
+// --- 精确的类型定义 ---
+// 基础 Props，所有项目共享
+type BaseSidebarItemProps = {
   label: string;
   active?: boolean;
-  count?: number;
-  tagColor?: string; // 添加标签颜色属性
-  onClick?: () => void; // 添加点击事件处理函数
+  onClick?: () => void;
 };
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active = false, count, tagColor, onClick }) => {
+// 通用项目的 Props，继承基础并添加必需的 icon
+type GenericSidebarItemProps = BaseSidebarItemProps & {
+  icon: React.ReactNode; // 图标现在是必需的
+};
+
+// 标签项目的 Props，继承基础并添加必需的 tagColor 和可选的 count
+type TagSidebarItemProps = BaseSidebarItemProps & {
+  tagColor: string; // 标签颜色是必需的
+  count?: number;
+};
+// --- 类型定义结束 ---
+
+// 通用侧边栏项目组件 (使用 GenericSidebarItemProps)
+const SidebarItem: React.FC<GenericSidebarItemProps> = ({ icon, label, active = false, onClick }) => {
+  // 非标签项的样式（所有提示词、收藏等）
   return (
     <li
       className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
       onClick={onClick}
     >
       <div className="flex items-center flex-1">
-        {/* 如果是标签，显示颜色标记 */}
-        {tagColor && <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: tagColor }}></span>}
+        {/* icon 现在是必需的，直接使用 */}
         <span className={`mr-2 ${active ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'}`}>{icon}</span>
         <span className="text-sm font-medium">{label}</span>
       </div>
-      {count !== undefined && (
-        <span className={`text-xs px-2 py-1 rounded-full ${active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+    </li>
+  );
+};
+
+// 标签专属的侧边栏项目组件 (使用 TagSidebarItemProps)
+const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor, onClick }) => {
+  return (
+    <li
+      className="flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 text-gray-600 hover:bg-gray-100"
+      onClick={onClick}
+    >
+      <div className="flex items-center flex-1">
+        {/* 固定使用 TagIcon，颜色由 props 决定 */}
+        <TagIcon size={18} className="mr-2 flex-shrink-0" style={{ color: tagColor }} />
+        <span className="text-sm font-medium truncate" title={label}>{label}</span>
+      </div>
+      {/* 显示数量徽章 */}
+      {count !== undefined && count > 0 && (
+        <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 group-hover:bg-gray-200 transition-colors">
           {count}
         </span>
       )}
@@ -38,6 +67,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active = false, 
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
+  // tags 状态现在包含 count
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
 
@@ -46,11 +76,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
     const fetchTags = async () => {
       try {
         setIsLoadingTags(true);
-        const fetchedTags = await getAllTags();
+        const fetchedTags = await getAllTags(); // 获取带 count 的标签
         setTags(fetchedTags);
       } catch (err) {
         console.error('加载标签失败:', err);
-        // 可以在这里设置错误状态
       } finally {
         setIsLoadingTags(false);
       }
@@ -95,8 +124,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
           {/* <SidebarItem icon={<TagIcon size={18} />} label="标签管理" /> */}
         </ul>
 
-        <div className="mt-6 mb-3 px-3">
-          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">标签</h3>
+        <div className="mt-6 mb-2 px-3">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">标签</h3>
         </div>
 
         {isLoadingTags ? (
@@ -104,23 +133,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
         ) : (
           <ul>
             {tags.map(tag => (
-              <SidebarItem
+              <TagSidebarItem
                 key={tag.id}
-                icon={<TagIcon size={18} />}
                 label={tag.name}
-                tagColor={tag.color} // 传递颜色
-              // count={/* 如果需要显示每个标签下有多少提示词，需要额外逻辑 */} 
+                tagColor={tag.color}
+                count={tag.count} // 传递 count
+              // onClick={() => console.log('Clicked tag:', tag.name)} // 可以添加点击事件
               />
             ))}
             {tags.length === 0 && !isLoadingTags && (
-              <li className="px-3 text-sm text-gray-400">暂无标签</li>
+              <li className="px-3 py-2 text-sm text-gray-400">暂无标签</li>
             )}
           </ul>
         )}
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <button className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-150">
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        <button className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-150 w-full">
           <SettingsIcon size={18} className="mr-2" />
           <span className="text-sm">设置</span>
         </button>
@@ -129,4 +158,5 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
   );
 };
 
+// export default Sidebar; // 移除重复的导出
 export default Sidebar;

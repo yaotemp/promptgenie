@@ -17,6 +17,7 @@ export interface Tag {
   id: string;
   name: string;
   color: string;
+  count?: number;
 }
 
 // 用于创建或更新提示词的接口
@@ -415,9 +416,26 @@ export async function toggleFavorite(id: string): Promise<boolean> {
   }
 }
 
-// 获取所有标签
+// 获取所有标签及其关联的提示词数量
 export async function getAllTags(): Promise<Tag[]> {
   const currentDb = await ensureDbInitialized();
-  const result = await currentDb.select<any[]>(`SELECT * FROM tags`);
-  return result.map(row => ({ id: row.id, name: row.name, color: row.color }));
+  // 使用 LEFT JOIN 和 COUNT 来统计每个标签关联的提示词数量
+  const result = await currentDb.select<any[]>(`
+    SELECT 
+      t.id, 
+      t.name, 
+      t.color, 
+      COUNT(pt.prompt_id) as prompt_count
+    FROM tags t
+    LEFT JOIN prompt_tags pt ON t.id = pt.tag_id
+    GROUP BY t.id, t.name, t.color
+    ORDER BY t.name ASC
+  `);
+  // 注意：这里返回的 Tag 类型需要包含 count
+  return result.map(row => ({
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    count: row.prompt_count
+  }));
 } 
