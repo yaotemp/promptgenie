@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XIcon, TagIcon, PlusIcon } from 'lucide-react';
 import { Tag, PromptInput } from '../services/db';
 
@@ -24,6 +24,11 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
 }) => {
   const [promptData, setPromptData] = useState(initialData);
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setPromptData(initialData);
+    setIsTagMenuOpen(false);
+  }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
