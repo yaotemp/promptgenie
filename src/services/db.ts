@@ -149,73 +149,6 @@ export async function getPrompt(id: string): Promise<Prompt | null> {
   };
 }
 
-// 创建新提示词
-export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
-  const currentDb = await ensureDbInitialized();
-  const now = new Date().toISOString();
-  const id = uuidv4();
-
-  try {
-    await currentDb.execute('BEGIN TRANSACTION');
-    let finalTags: Tag[] = [];
-
-    await currentDb.execute(
-      `INSERT INTO prompts (id, title, content, is_favorite, created_at, updated_at) VALUES ($1, $2, $3, 0, $4, $5)`,
-      [id, promptData.title, promptData.content, now, now]
-    );
-
-    for (const tag of promptData.tags) {
-      let tagId = tag.id;
-      let finalTag = { ...tag }; // Copy tag data
-
-      if (!tagId) {
-        const existingTags = await currentDb.select<any[]>(
-          `SELECT id FROM tags WHERE name = $1`, [tag.name]
-        );
-
-        if (existingTags.length > 0) {
-          tagId = existingTags[0].id;
-        } else {
-          tagId = uuidv4();
-          await currentDb.execute(
-            `INSERT INTO tags (id, name, color) VALUES ($1, $2, $3)`,
-            [tagId, tag.name, tag.color]
-          );
-        }
-        finalTag.id = tagId; // Update the tag object with the new/found ID
-      }
-
-      finalTags.push(finalTag); // Add the tag with a guaranteed ID
-
-      await currentDb.execute(
-        `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
-        [id, tagId]
-      );
-    }
-
-    await currentDb.execute('COMMIT');
-
-    return {
-      id,
-      title: promptData.title,
-      content: promptData.content,
-      isFavorite: false,
-      dateCreated: now,
-      dateModified: now,
-      tags: finalTags // Use the tags with updated IDs
-    };
-  } catch (error) {
-    try {
-      // 确保回滚事务
-      await currentDb.execute('ROLLBACK');
-    } catch (rollbackError) {
-      console.error("回滚事务失败:", rollbackError);
-    }
-    console.error("Error creating prompt:", error);
-    throw error;
-  }
-}
-
 // 辅助函数：预处理标签，确保它们存在于数据库中，并返回最终的标签列表
 async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]> {
   const finalTags: Tag[] = [];
@@ -290,6 +223,63 @@ async function ensureTagsExist(tags: Tag[], currentDb: Database): Promise<Tag[]>
     }
   }
   return finalTags;
+}
+
+// 创建新提示词
+export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
+  const currentDb = await ensureDbInitialized();
+  const now = new Date().toISOString();
+  const id = uuidv4(); // 生成 Prompt ID
+  let transactionStarted = false;
+
+  try {
+    // 1. 预处理标签（在事务外）
+    const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
+
+    // 2. 开始主事务
+    await currentDb.execute('BEGIN TRANSACTION');
+    transactionStarted = true;
+
+    // 3. 插入 prompts 表
+    await currentDb.execute(
+      `INSERT INTO prompts (id, title, content, is_favorite, created_at, updated_at) VALUES ($1, $2, $3, 0, $4, $5)`,
+      [id, promptData.title, promptData.content, now, now]
+    );
+
+    // 4. 插入新的标签关联 (使用已确保存在的标签 ID)
+    for (const tag of ensuredTags) {
+      await currentDb.execute(
+        `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
+        [id, tag.id] // 使用 ensuredTags 返回的有效 tag.id
+      );
+    }
+
+    // 5. 提交事务
+    await currentDb.execute('COMMIT');
+    transactionStarted = false;
+
+    // 6. 直接构建并返回结果
+    return {
+      id,
+      title: promptData.title,
+      content: promptData.content,
+      isFavorite: false,
+      dateCreated: now,
+      dateModified: now,
+      tags: ensuredTags // 使用预处理后的标签列表
+    };
+
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        await currentDb.execute('ROLLBACK');
+      } catch (rollbackError) {
+        console.error("回滚事务失败:", rollbackError);
+      }
+    }
+    console.error("Error creating prompt:", error);
+    throw error;
+  }
 }
 
 // 更新提示词
