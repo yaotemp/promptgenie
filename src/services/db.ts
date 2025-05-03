@@ -356,20 +356,21 @@ export async function deletePrompt(id: string): Promise<boolean> {
   const currentDb = await ensureDbInitialized();
 
   try {
-    await currentDb.execute('BEGIN TRANSACTION');
+    // 不再使用显式事务
+    // await currentDb.execute('BEGIN TRANSACTION');
     await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
     await currentDb.execute(`DELETE FROM prompts WHERE id = $1`, [id]);
-    await currentDb.execute('COMMIT');
+    // await currentDb.execute('COMMIT');
     return true;
   } catch (error) {
-    try {
-      // 确保回滚事务
-      await currentDb.execute('ROLLBACK');
-    } catch (rollbackError) {
-      console.error("回滚事务失败:", rollbackError);
-    }
+    // 不再需要 ROLLBACK
+    // try {
+    //   await currentDb.execute('ROLLBACK');
+    // } catch (rollbackError) {
+    //   console.error("回滚事务失败:", rollbackError);
+    // }
     console.error("Error deleting prompt:", error);
-    throw error;
+    throw error; // 仍然抛出错误，以便上层处理 UI 反馈
   }
 }
 

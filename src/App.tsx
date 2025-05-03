@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+// import { confirm } from '@tauri-apps/plugin-dialog'; // 不再需要 Tauri 对话框
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
+import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
 import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput } from './services/db';
 
 function App() {
@@ -10,6 +12,10 @@ function App() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 确认对话框状态
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [promptToDeleteId, setPromptToDeleteId] = useState<string | null>(null);
 
   // 初始化数据库并加载提示词
   useEffect(() => {
@@ -64,15 +70,32 @@ function App() {
     }
   };
 
+  // 打开删除确认对话框
   const handleDeletePrompt = async (id: string) => {
+    setPromptToDeleteId(id); // 设置要删除的 ID
+    setIsConfirmOpen(true); // 打开确认对话框
+  };
+
+  // 确认删除操作
+  const confirmDeletion = async () => {
+    if (!promptToDeleteId) return;
     setError(null);
     try {
-      await deletePrompt(id);
-      setPrompts(prevPrompts => prevPrompts.filter(p => p.id !== id));
+      await deletePrompt(promptToDeleteId);
+      setPrompts(prevPrompts => prevPrompts.filter(p => p.id !== promptToDeleteId));
     } catch (err) {
       console.error('删除提示词失败:', err);
       setError('删除提示词失败，请重试。');
+    } finally {
+      setIsConfirmOpen(false); // 关闭对话框
+      setPromptToDeleteId(null); // 清空 ID
     }
+  };
+
+  // 取消删除操作
+  const cancelDeletion = () => {
+    setIsConfirmOpen(false); // 关闭对话框
+    setPromptToDeleteId(null); // 清空 ID
   };
 
   const handleFavoriteToggle = async (id: string) => {
@@ -144,6 +167,16 @@ function App() {
         }}
         onClose={handleEditorClose}
         onSave={handleSavePrompt}
+      />
+
+      {/* 删除确认对话框 */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        title="确认删除"
+        message="确定要删除这个提示词吗？此操作无法撤销。"
+        confirmText="删除"
+        onConfirm={confirmDeletion}
+        onCancel={cancelDeletion}
       />
     </div>
   );

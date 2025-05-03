@@ -16,6 +16,7 @@ PromptGenie 是一个基于 Tauri 的桌面应用，用于管理 AI 提示词模
 
 ## 一些重要的技术细节
 - 所有的数据库id务必使用uuid v7，不要用v4
+- 能在前端做的事情尽量放在前端代码完成，不得已再考虑在rust端实现。
 
 ## 关键文件
 - Rust 后端: [src-tauri/src/lib.rs](mdc:src-tauri/src/lib.rs) - Tauri 应用入口及数据库初始化
