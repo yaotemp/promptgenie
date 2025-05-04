@@ -1,11 +1,20 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::menu::{MenuBuilder, MenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::Manager;
+use tauri::{
+    menu::{MenuBuilder, MenuItem},
+    tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Emitter, Manager, Runtime,
+};
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+// 新增：用于从前端接收菜单项数据的结构体
+#[derive(serde::Deserialize)]
+struct PromptMenuItem {
+    id: String,
+    title: String,
+}
+
 // 初始化数据库
-fn init_db(app: &tauri::AppHandle) {
+fn init_db<R: Runtime>(app: &AppHandle<R>) {
     // 确保数据目录存在
     let app_dir = app.path().app_data_dir().expect("无法获取app数据目录");
     std::fs::create_dir_all(&app_dir).expect("无法创建数据目录");
@@ -17,7 +26,103 @@ fn init_db(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    format!("Hello, {}! You\'ve been greeted from Rust!", name)
+}
+
+// 处理托盘图标事件的独立函数 - Simplified
+fn handle_tray_icon_event<R: Runtime>(tray_handle: &TrayIcon<R>, event: TrayIconEvent) {
+    match event {
+        TrayIconEvent::Click { .. } => {
+            if let Some(window) = tray_handle.app_handle().get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                eprintln!("无法找到主窗口 'main'");
+            }
+        }
+        _ => {}
+    }
+}
+
+// 新增：用于更新托盘菜单的命令
+#[tauri::command]
+async fn update_tray_menu<R: Runtime>(
+    app_handle: AppHandle<R>,
+    items: Vec<PromptMenuItem>,
+) -> Result<(), String> {
+    // 构建菜单
+    let mut menu_builder = MenuBuilder::new(&app_handle);
+
+    if items.is_empty() {
+        menu_builder = menu_builder.item(
+            &MenuItem::with_id(
+                &app_handle,
+                "no-recent",
+                "无最近使用记录",
+                false,
+                None::<&str>,
+            )
+            .map_err(|e| e.to_string())?,
+        );
+    } else {
+        for item in items {
+            let title = if item.title.chars().count() > 30 {
+                format!("{}...", item.title.chars().take(27).collect::<String>())
+            } else {
+                item.title
+            };
+            menu_builder = menu_builder.item(
+                &MenuItem::with_id(&app_handle, &item.id, title, true, None::<&str>)
+                    .map_err(|e| e.to_string())?,
+            );
+        }
+    }
+
+    let menu = menu_builder
+        .separator()
+        .item(
+            &MenuItem::with_id(&app_handle, "quit", "退出", true, None::<&str>)
+                .map_err(|e| e.to_string())?,
+        )
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 为了简单起见，直接重新创建托盘图标
+    let icon = app_handle
+        .default_window_icon()
+        .ok_or("无法获取默认图标".to_string())?
+        .clone();
+
+    // 构建托盘图标并设置新菜单
+    TrayIconBuilder::new()
+        .icon(icon)
+        .tooltip("PromptGenie")
+        .menu(&menu)
+        .on_menu_event(move |app_handle_for_event, event| {
+            let id = event.id().0.as_str();
+            match id {
+                "quit" => {
+                    std::process::exit(0);
+                }
+                _ => {
+                    if id != "no-recent" {
+                        println!("Clicked dynamic menu item ID: {}", id);
+                        let payload = id.to_string();
+
+                        // 使用主窗口直接发送事件
+                        if let Some(window) = app_handle_for_event.get_webview_window("main") {
+                            let _ = window.emit("tray-prompt-selected", payload);
+                        }
+                    }
+                }
+            }
+        })
+        .on_tray_icon_event(handle_tray_icon_event)
+        .build(&app_handle)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,24 +145,58 @@ pub fn run() {
             // 初始化数据库目录（如果需要）
             init_db(&app.handle());
 
-            // 创建托盘菜单
-            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-            let tray_menu = MenuBuilder::new(app).items(&[&quit]).build()?;
+            // --- 托盘初始设置 ---
+            let app_handle = app.handle().clone();
 
-            // 创建并配置系统托盘
+            // 初始菜单可以保持简单，只包含退出选项
+            let initial_menu = MenuBuilder::new(&app_handle)
+                .item(&MenuItem::with_id(
+                    &app_handle,
+                    "quit",
+                    "退出",
+                    true,
+                    None::<&str>,
+                )?)
+                .build()?;
+
+            let icon = app_handle
+                .default_window_icon()
+                .expect("无法获取默认图标")
+                .clone();
+
+            // 构建托盘图标并设置 ID
             TrayIconBuilder::new()
-                .icon(app.default_window_icon().expect("无法获取默认图标").clone())
-                .menu(&tray_menu)
-                .on_menu_event(|_app, event| {
-                    if event.id().0 == "quit" {
-                        std::process::exit(0);
+                .icon(icon)
+                .tooltip("PromptGenie")
+                .menu(&initial_menu)
+                .on_menu_event(move |app_handle_for_event, event| {
+                    let id = event.id().0.as_str();
+                    match id {
+                        "quit" => {
+                            std::process::exit(0);
+                        }
+                        _ => {
+                            println!("Clicked dynamic menu item ID: {}", id);
+                            let payload = id.to_string();
+
+                            // 使用主窗口直接发送事件
+                            if let Some(window) = app_handle_for_event.get_webview_window("main") {
+                                match window.emit("tray-prompt-selected", payload) {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        eprintln!("Failed to emit tray-prompt-selected: {}", e)
+                                    }
+                                }
+                            }
+                        }
                     }
                 })
-                .build(app)?;
+                .on_tray_icon_event(handle_tray_icon_event)
+                .build(&app_handle)?;
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, update_tray_menu])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
