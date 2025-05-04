@@ -88,41 +88,15 @@ async fn update_tray_menu<R: Runtime>(
         .build()
         .map_err(|e| e.to_string())?;
 
-    // 为了简单起见，直接重新创建托盘图标
-    let icon = app_handle
-        .default_window_icon()
-        .ok_or("无法获取默认图标".to_string())?
-        .clone();
-
-    // 构建托盘图标并设置新菜单
-    TrayIconBuilder::new()
-        .icon(icon)
-        .tooltip("PromptGenie")
-        .menu(&menu)
-        .on_menu_event(move |app_handle_for_event, event| {
-            let id = event.id().0.as_str();
-            match id {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                _ => {
-                    if id != "no-recent" {
-                        println!("Clicked dynamic menu item ID: {}", id);
-                        let payload = id.to_string();
-
-                        // 使用主窗口直接发送事件
-                        if let Some(window) = app_handle_for_event.get_webview_window("main") {
-                            let _ = window.emit("tray-prompt-selected", payload);
-                        }
-                    }
-                }
-            }
-        })
-        .on_tray_icon_event(handle_tray_icon_event)
-        .build(&app_handle)
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+    // 获取现有托盘图标并更新菜单，而不是创建新图标
+    if let Some(tray_icon) = app_handle.tray_by_id("default") {
+        tray_icon.set_menu(Some(menu)).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        // 如果找不到默认托盘图标，打印信息并返回错误
+        eprintln!("找不到默认托盘图标");
+        Err("找不到默认托盘图标".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -165,7 +139,7 @@ pub fn run() {
                 .clone();
 
             // 构建托盘图标并设置 ID
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("default")
                 .icon(icon)
                 .tooltip("PromptGenie")
                 .menu(&initial_menu)

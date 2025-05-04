@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput } from './services/db';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -28,6 +28,11 @@ function App() {
         const loadedPrompts = await getAllPrompts();
         setPrompts(loadedPrompts);
         console.log('App: Prompts loaded.');
+
+        // 启动时更新托盘菜单
+        updateTrayMenu().catch(err => {
+          console.error('启动时更新托盘菜单失败:', err);
+        });
       } catch (err) {
         console.error('App: 加载数据失败:', err);
         setError('无法加载数据，请检查数据库连接或重启应用。');

@@ -1,5 +1,5 @@
-import { v7 as uuidv7 } from 'uuid';
 import Database from '@tauri-apps/plugin-sql';
+import { v7 as uuidv7 } from 'uuid';
 
 // 定义类型
 export interface Prompt {
@@ -410,9 +410,81 @@ export async function updatePromptLastUsed(id: string): Promise<boolean> {
       [id]
     );
     console.log(`Updated last_used_at for prompt ${id}, rows affected: ${result.rowsAffected}`);
+
+    // 更新后立即刷新托盘菜单
+    updateTrayMenu().catch(err => {
+      console.error('Failed to update tray menu after prompt use:', err);
+    });
+
     return result.rowsAffected > 0;
   } catch (err) {
     console.error(`Failed to update last_used_at for prompt ${id}:`, err);
     return false;
+  }
+}
+
+// 获取最近使用的提示词
+export async function getRecentlyUsedPrompts(limit: number = 5): Promise<Prompt[]> {
+  const currentDb = await ensureDbInitialized();
+
+  try {
+    // 获取最近使用的提示词，优先按last_used_at排序，如果为空则按updated_at排序
+    const result = await currentDb.select<any[]>(`
+      SELECT * FROM prompts 
+      WHERE last_used_at IS NOT NULL
+      ORDER BY last_used_at DESC
+      LIMIT $1
+    `, [limit]);
+
+    const prompts: Prompt[] = [];
+
+    for (const row of result) {
+      const tagsResult = await currentDb.select<any[]>(`
+        SELECT t.* 
+        FROM tags t
+        JOIN prompt_tags pt ON t.id = pt.tag_id
+        WHERE pt.prompt_id = $1
+      `, [row.id]);
+
+      prompts.push({
+        id: row.id,
+        title: row.title,
+        content: row.content,
+        isFavorite: row.is_favorite === 1,
+        dateCreated: row.created_at,
+        dateModified: row.updated_at,
+        tags: tagsResult.map(tag => ({ id: tag.id, name: tag.name, color: tag.color }))
+      });
+    }
+
+    return prompts;
+  } catch (err) {
+    console.error('Failed to get recently used prompts:', err);
+    return [];
+  }
+}
+
+// 更新托盘菜单
+export async function updateTrayMenu(): Promise<void> {
+  try {
+    // 获取最近使用的提示词
+    const recentPrompts = await getRecentlyUsedPrompts(5);
+
+    // 将提示词转换为托盘菜单项格式
+    const menuItems = recentPrompts.map(prompt => ({
+      id: prompt.id,
+      title: prompt.title
+    }));
+
+    // 动态导入Tauri API并调用后端更新托盘菜单
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('update_tray_menu', { items: menuItems });
+      console.log('Tray menu updated with recent prompts:', menuItems);
+    } catch (apiError) {
+      console.error('Error importing Tauri API or updating tray menu:', apiError);
+    }
+  } catch (err) {
+    console.error('Failed to update tray menu:', err);
   }
 } 
