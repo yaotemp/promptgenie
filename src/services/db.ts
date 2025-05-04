@@ -399,4 +399,20 @@ export async function getAllTags(): Promise<Tag[]> {
     color: row.color,
     count: row.prompt_count
   }));
+}
+
+// 更新提示词的最后使用时间
+export async function updatePromptLastUsed(id: string): Promise<boolean> {
+  const currentDb = await ensureDbInitialized();
+  try {
+    const result = await currentDb.execute(
+      'UPDATE prompts SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [id]
+    );
+    console.log(`Updated last_used_at for prompt ${id}, rows affected: ${result.rowsAffected}`);
+    return result.rowsAffected > 0;
+  } catch (err) {
+    console.error(`Failed to update last_used_at for prompt ${id}:`, err);
+    return false;
+  }
 } 

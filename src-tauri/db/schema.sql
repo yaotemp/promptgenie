@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS prompts (
   content TEXT NOT NULL,
   is_favorite INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  last_used_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS tags (

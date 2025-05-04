@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Header from './Header';
 import PromptGrid from './PromptGrid';
 import PromptList from './PromptList';
-import { Prompt } from '../services/db';
+import { Prompt, updatePromptLastUsed } from '../services/db';
 
 type MainContentProps = {
   title: string;
@@ -28,8 +28,10 @@ const MainContent: React.FC<MainContentProps> = ({
     if (prompt) {
       navigator.clipboard.writeText(prompt.content)
         .then(() => {
-          // 可以在这里增加一个复制成功的提示
           console.log('提示词已复制到剪贴板');
+          updatePromptLastUsed(id).catch(err => {
+            console.error(`更新提示词 ${id} 的 last_used_at 失败:`, err);
+          });
         })
         .catch(err => {
           console.error('复制失败:', err);
