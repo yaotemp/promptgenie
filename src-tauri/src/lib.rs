@@ -46,6 +46,7 @@ pub fn run() {
 
             // 创建并配置系统托盘
             TrayIconBuilder::new()
+                .icon(app.default_window_icon().expect("无法获取默认图标").clone())
                 .menu(&tray_menu)
                 .on_menu_event(|_app, event| {
                     if event.id().0 == "quit" {
