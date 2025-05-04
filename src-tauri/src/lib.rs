@@ -4,6 +4,7 @@ use tauri::{
     tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, Runtime,
 };
+use tauri_plugin_clipboard_manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 // 新增：用于从前端接收菜单项数据的结构体
@@ -110,6 +111,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:promptgenie.db", migrations)

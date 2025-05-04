@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu } from './services/db';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -33,6 +33,29 @@ function App() {
         updateTrayMenu().catch(err => {
           console.error('启动时更新托盘菜单失败:', err);
         });
+
+        // 监听托盘菜单中提示词被选择的事件
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlisten = await listen('tray-prompt-selected', (event) => {
+          const promptId = event.payload as string;
+          console.log(`托盘菜单选择了提示词: ${promptId}`);
+          copyPromptToClipboard(promptId)
+            .then(success => {
+              if (success) {
+                console.log('已通过托盘菜单复制提示词');
+              } else {
+                console.error('通过托盘菜单复制提示词失败');
+              }
+            })
+            .catch(err => {
+              console.error('处理托盘菜单选择事件时出错:', err);
+            });
+        });
+
+        // 组件卸载时移除事件监听
+        return () => {
+          unlisten();
+        };
       } catch (err) {
         console.error('App: 加载数据失败:', err);
         setError('无法加载数据，请检查数据库连接或重启应用。');

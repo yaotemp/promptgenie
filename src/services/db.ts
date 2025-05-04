@@ -487,4 +487,36 @@ export async function updateTrayMenu(): Promise<void> {
   } catch (err) {
     console.error('Failed to update tray menu:', err);
   }
+}
+
+// 根据ID复制提示词内容到剪贴板
+export async function copyPromptToClipboard(id: string): Promise<boolean> {
+  try {
+    // 获取提示词
+    const prompt = await getPrompt(id);
+    if (!prompt) {
+      console.error(`找不到ID为${id}的提示词`);
+      return false;
+    }
+
+    try {
+      // 使用Tauri的剪贴板插件
+      const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+      await writeText(prompt.content);
+      console.log(`提示词 "${prompt.title}" 已复制到剪贴板`);
+    } catch (clipboardError) {
+      console.error('使用Tauri剪贴板插件失败:', clipboardError);
+      // 尝试使用浏览器API作为备选
+      await navigator.clipboard.writeText(prompt.content);
+      console.log(`使用浏览器API复制提示词 "${prompt.title}" 到剪贴板`);
+    }
+
+    // 更新最后使用时间
+    await updatePromptLastUsed(id);
+
+    return true;
+  } catch (err) {
+    console.error('复制提示词到剪贴板失败:', err);
+    return false;
+  }
 } 
