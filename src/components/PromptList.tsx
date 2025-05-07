@@ -25,7 +25,7 @@ const PromptList: React.FC<PromptListProps> = ({
           <tr className="text-left">
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">提示词</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
-            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">修改日期</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">修改日期</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">收藏</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">操作</th>
           </tr>
@@ -56,7 +56,7 @@ const PromptList: React.FC<PromptListProps> = ({
                   ))}
                 </div>
               </td>
-              <td className="px-6 py-4 text-sm text-gray-500" title={new Date(prompt.dateModified).toLocaleString()}>
+              <td className="px-6 py-4 text-sm text-gray-500 min-w-[120px]" title={new Date(prompt.dateModified).toLocaleString()}>
                 {formatRelativeTime(prompt.dateModified)}
               </td>
               <td className="px-6 py-4 text-center">
