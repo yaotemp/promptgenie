@@ -5,7 +5,6 @@ import PromptEditor from './components/PromptEditor';
 import TagManager from './components/TagManager'; // 导入标签管理组件
 import Settings from './components/Settings'; // 导入设置组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
-import { SettingsIcon } from 'lucide-react';
 import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt, updatePromptLastUsed } from './services/db';
 
 function App() {
@@ -273,93 +272,97 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
-      <Sidebar
-        onNewPrompt={() => handleEditorOpen()}
-        onOpenTagManager={openTagManager}
-        onAllPromptsClick={handleAllPromptsClick}
-        onFavoritesClick={handleFavoritesClick}
-        onTagClick={handleTagClick}
-        activeFilterMode={filterMode}
-        activeTagId={selectedTagId}
-        onOpenSettings={openSettings}
-      />
+    <>
+      {/* 标题栏与内容之间的分割线 */}
+      <div className="fixed top-0 left-0 right-0 h-[1px] bg-gray-200 z-10"></div>
+      <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
+        <Sidebar
+          onNewPrompt={() => handleEditorOpen()}
+          onOpenTagManager={openTagManager}
+          onAllPromptsClick={handleAllPromptsClick}
+          onFavoritesClick={handleFavoritesClick}
+          onTagClick={handleTagClick}
+          activeFilterMode={filterMode}
+          activeTagId={selectedTagId}
+          onOpenSettings={openSettings}
+        />
 
-      <MainContent
-        title={getContentTitle()}
-        prompts={filteredPrompts}
-        isLoading={isLoading}
-        onFavoriteToggle={handleFavoriteToggle}
-        onEdit={handleEditorOpen}
-        onDelete={handleDeletePrompt}
-      />
+        <MainContent
+          title={getContentTitle()}
+          prompts={filteredPrompts}
+          isLoading={isLoading}
+          onFavoriteToggle={handleFavoriteToggle}
+          onEdit={handleEditorOpen}
+          onDelete={handleDeletePrompt}
+        />
 
-      {/* 错误消息 */}
-      {error && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg z-50 shadow-md">
-          <span>{error}</span>
+        {/* 错误消息 */}
+        {error && (
+          <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg z-50 shadow-md">
+            <span>{error}</span>
+            <button
+              className="ml-4 text-red-500 hover:text-red-700 font-semibold"
+              onClick={() => setError(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* 浮动操作按钮区 */}
+        <div className="fixed right-8 bottom-8 flex flex-col space-y-3 items-end">
+          {/* 添加提示词按钮 */}
           <button
-            className="ml-4 text-red-500 hover:text-red-700 font-semibold"
-            onClick={() => setError(null)}
+            className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
+            onClick={() => handleEditorOpen()}
+            aria-label="创建新提示词"
           >
-            ×
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
           </button>
         </div>
-      )}
 
-      {/* 浮动操作按钮区 */}
-      <div className="fixed right-8 bottom-8 flex flex-col space-y-3 items-end">
-        {/* 添加提示词按钮 */}
-        <button
-          className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
-          onClick={() => handleEditorOpen()}
-          aria-label="创建新提示词"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
+        {/* 提示词编辑器模态框 */}
+        <PromptEditor
+          isOpen={isEditorOpen}
+          initialData={editingPrompt ? {
+            id: editingPrompt.id,
+            title: editingPrompt.title,
+            content: editingPrompt.content,
+            tags: editingPrompt.tags
+          } : {
+            title: '',
+            content: '',
+            tags: []
+          }}
+          onClose={handleEditorClose}
+          onSave={handleSavePrompt}
+        />
+
+        {/* 标签管理模态框 */}
+        <TagManager
+          isOpen={isTagManagerOpen}
+          onClose={closeTagManager}
+        />
+
+        {/* 设置模态框 */}
+        <Settings
+          isOpen={isSettingsOpen}
+          onClose={closeSettings}
+        />
+
+        {/* 删除确认对话框 */}
+        <ConfirmDialog
+          isOpen={isConfirmOpen}
+          title="确认删除"
+          message="确定要删除这个提示词吗？此操作无法撤销。"
+          confirmText="删除"
+          onConfirm={confirmDeletion}
+          onCancel={cancelDeletion}
+        />
       </div>
-
-      {/* 提示词编辑器模态框 */}
-      <PromptEditor
-        isOpen={isEditorOpen}
-        initialData={editingPrompt ? {
-          id: editingPrompt.id,
-          title: editingPrompt.title,
-          content: editingPrompt.content,
-          tags: editingPrompt.tags
-        } : {
-          title: '',
-          content: '',
-          tags: []
-        }}
-        onClose={handleEditorClose}
-        onSave={handleSavePrompt}
-      />
-
-      {/* 标签管理模态框 */}
-      <TagManager
-        isOpen={isTagManagerOpen}
-        onClose={closeTagManager}
-      />
-
-      {/* 设置模态框 */}
-      <Settings
-        isOpen={isSettingsOpen}
-        onClose={closeSettings}
-      />
-
-      {/* 删除确认对话框 */}
-      <ConfirmDialog
-        isOpen={isConfirmOpen}
-        title="确认删除"
-        message="确定要删除这个提示词吗？此操作无法撤销。"
-        confirmText="删除"
-        onConfirm={confirmDeletion}
-        onCancel={cancelDeletion}
-      />
-    </div>
+    </>
   );
 }
 
