@@ -220,12 +220,6 @@ const TagManager: React.FC<TagManagerProps> = ({ isOpen, onClose }) => {
                               aria-label={`选择颜色 ${color}`}
                             />
                           ))}
-                          <input
-                            type="color"
-                            value={editColor}
-                            onChange={(e) => setEditColor(e.target.value)}
-                            className="w-6 h-6"
-                          />
                         </div>
                       </div>
 
