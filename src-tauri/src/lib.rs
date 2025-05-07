@@ -68,13 +68,25 @@ async fn update_tray_menu<R: Runtime>(
     // 添加分隔线
     menu_builder = menu_builder.separator();
 
+    // 添加最近提示词的标题（不可点击）
+    menu_builder = menu_builder.item(
+        &MenuItem::with_id(
+            &app_handle,
+            "recent-title",
+            "最近使用的提示词",
+            false, // 设为false表示不可点击
+            None::<&str>,
+        )
+        .map_err(|e| e.to_string())?,
+    );
+
     // 添加最近使用的提示词
     if items.is_empty() {
         menu_builder = menu_builder.item(
             &MenuItem::with_id(
                 &app_handle,
                 "no-recent",
-                "无最近使用记录",
+                "  无记录", // 增加缩进以表示层级关系
                 false,
                 None::<&str>,
             )
@@ -83,9 +95,10 @@ async fn update_tray_menu<R: Runtime>(
     } else {
         for item in items {
             let title = if item.title.chars().count() > 30 {
-                format!("{}...", item.title.chars().take(27).collect::<String>())
+                format!("  {}...", item.title.chars().take(27).collect::<String>())
+            // 增加缩进
             } else {
-                item.title
+                format!("  {}", item.title) // 增加缩进
             };
             menu_builder = menu_builder.item(
                 &MenuItem::with_id(&app_handle, &item.id, title, true, None::<&str>)
