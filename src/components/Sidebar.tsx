@@ -5,7 +5,12 @@ import { getAllTags, Tag } from '../services/db'; // 引入获取标签的函数
 
 type SidebarProps = {
   onNewPrompt: () => void;
-  onOpenTagManager?: () => void; // 添加新的属性
+  onOpenTagManager?: () => void;
+  onAllPromptsClick: () => void;
+  onFavoritesClick: () => void;
+  onTagClick: (tagId: string) => void;
+  activeFilterMode: 'all' | 'favorites';
+  activeTagId: string | null;
 };
 
 // --- 精确的类型定义 ---
@@ -25,6 +30,8 @@ type GenericSidebarItemProps = BaseSidebarItemProps & {
 type TagSidebarItemProps = BaseSidebarItemProps & {
   tagColor: string; // 标签颜色是必需的
   count?: number;
+  active?: boolean;
+  onClick?: () => void;
 };
 // --- 类型定义结束 ---
 
@@ -46,10 +53,10 @@ const SidebarItem: React.FC<GenericSidebarItemProps> = ({ icon, label, active = 
 };
 
 // 标签专属的侧边栏项目组件 (使用 TagSidebarItemProps)
-const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor, onClick }) => {
+const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor, active, onClick }) => {
   return (
     <li
-      className="flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 text-gray-600 hover:bg-gray-100"
+      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
       onClick={onClick}
     >
       <div className="flex items-center flex-1">
@@ -67,7 +74,15 @@ const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor,
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt, onOpenTagManager }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  onNewPrompt,
+  onOpenTagManager,
+  onAllPromptsClick,
+  onFavoritesClick,
+  onTagClick,
+  activeFilterMode,
+  activeTagId
+}) => {
   // tags 状态现在包含 count
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
@@ -152,8 +167,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt, onOpenTagManager }) => {
 
       <nav className="flex-1 px-2 overflow-y-auto">
         <ul>
-          <SidebarItem icon={<FolderIcon size={18} />} label="所有提示词" active />
-          <SidebarItem icon={<StarIcon size={18} />} label="收藏提示词" />
+          <SidebarItem
+            icon={<FolderIcon size={18} />}
+            label="所有提示词"
+            active={activeFilterMode === 'all' && !activeTagId}
+            onClick={onAllPromptsClick}
+          />
+          <SidebarItem
+            icon={<StarIcon size={18} />}
+            label="收藏提示词"
+            active={activeFilterMode === 'favorites'}
+            onClick={onFavoritesClick}
+          />
           {/* 添加标签管理链接 */}
           <SidebarItem
             icon={<TagIcon size={18} />}
@@ -175,8 +200,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt, onOpenTagManager }) => {
                 key={tag.id}
                 label={tag.name}
                 tagColor={tag.color}
-                count={tag.count} // 传递 count
-              // onClick={() => console.log('Clicked tag:', tag.name)} // 可以添加点击事件
+                count={tag.count}
+                active={activeTagId === tag.id}
+                onClick={() => onTagClick(tag.id)}
               />
             ))}
             {tags.length === 0 && !isLoadingTags && (
@@ -196,5 +222,4 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt, onOpenTagManager }) => {
   );
 };
 
-// export default Sidebar; // 移除重复的导出
 export default Sidebar;

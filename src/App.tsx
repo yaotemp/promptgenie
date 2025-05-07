@@ -14,6 +14,29 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false); // 添加标签管理状态
 
+  // 当前过滤模式
+  const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+
+  // 过滤后的提示词
+  const filteredPrompts = React.useMemo(() => {
+    let result = [...prompts];
+
+    // 收藏过滤
+    if (filterMode === 'favorites') {
+      result = result.filter(prompt => prompt.isFavorite);
+    }
+
+    // 标签过滤
+    if (selectedTagId) {
+      result = result.filter(prompt =>
+        prompt.tags.some(tag => tag.id === selectedTagId)
+      );
+    }
+
+    return result;
+  }, [prompts, filterMode, selectedTagId]);
+
   // 确认对话框状态
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [promptToDeleteId, setPromptToDeleteId] = useState<string | null>(null);
@@ -167,16 +190,51 @@ function App() {
     await handleTagsChanged();
   };
 
+  // 处理侧边栏收藏项点击
+  const handleFavoritesClick = () => {
+    setFilterMode('favorites');
+    setSelectedTagId(null);
+  };
+
+  // 处理"所有提示词"点击
+  const handleAllPromptsClick = () => {
+    setFilterMode('all');
+    setSelectedTagId(null);
+  };
+
+  // 处理标签点击
+  const handleTagClick = (tagId: string) => {
+    setSelectedTagId(tagId);
+    setFilterMode('all'); // 重置收藏过滤以避免混淆
+  };
+
+  // 获取当前视图的标题
+  const getContentTitle = () => {
+    if (selectedTagId) {
+      const tag = prompts
+        .flatMap(p => p.tags)
+        .find(t => t.id === selectedTagId);
+      return tag ? `标签: ${tag.name}` : '已过滤提示词';
+    }
+
+    return filterMode === 'favorites' ? '收藏提示词' : '所有提示词';
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
       <Sidebar
         onNewPrompt={() => handleEditorOpen()}
         onOpenTagManager={openTagManager}
+        onAllPromptsClick={handleAllPromptsClick}
+        onFavoritesClick={handleFavoritesClick}
+        onTagClick={handleTagClick}
+        activeFilterMode={filterMode}
+        activeTagId={selectedTagId}
       />
 
       <MainContent
-        title="所有提示词"
-        prompts={prompts}
+        title={getContentTitle()}
+        prompts={filteredPrompts}
         isLoading={isLoading}
         onFavoriteToggle={handleFavoriteToggle}
         onEdit={handleEditorOpen}
