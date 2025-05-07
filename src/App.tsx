@@ -15,6 +15,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false); // 添加标签管理状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false); // 添加设置状态
+  const [searchTerm, setSearchTerm] = useState(''); // 添加搜索词状态
 
   // 当前过滤模式
   const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
@@ -36,8 +37,18 @@ function App() {
       );
     }
 
+    // 搜索过滤
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter(prompt =>
+        prompt.title.toLowerCase().includes(term) ||
+        prompt.content.toLowerCase().includes(term) ||
+        prompt.tags.some(tag => tag.name.toLowerCase().includes(term))
+      );
+    }
+
     return result;
-  }, [prompts, filterMode, selectedTagId]);
+  }, [prompts, filterMode, selectedTagId, searchTerm]);
 
   // 确认对话框状态
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -259,16 +270,31 @@ function App() {
     setFilterMode('all'); // 重置收藏过滤以避免混淆
   };
 
+  // 处理搜索输入变化
+  const handleSearchChange = (term: string) => {
+    setSearchTerm(term);
+  };
+
   // 获取当前视图的标题
   const getContentTitle = () => {
+    let baseTitle = '';
+
+    // 确定基础标题（根据过滤条件）
     if (selectedTagId) {
       const tag = prompts
         .flatMap(p => p.tags)
         .find(t => t.id === selectedTagId);
-      return tag ? `标签: ${tag.name}` : '已过滤提示词';
+      baseTitle = tag ? `标签: ${tag.name}` : '已过滤提示词';
+    } else {
+      baseTitle = filterMode === 'favorites' ? '收藏提示词' : '所有提示词';
     }
 
-    return filterMode === 'favorites' ? '收藏提示词' : '所有提示词';
+    // 如果有搜索词，追加搜索信息
+    if (searchTerm.trim()) {
+      return `${baseTitle} (搜索: "${searchTerm}")`;
+    }
+
+    return baseTitle;
   };
 
   return (
@@ -294,6 +320,8 @@ function App() {
           onFavoriteToggle={handleFavoriteToggle}
           onEdit={handleEditorOpen}
           onDelete={handleDeletePrompt}
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
         />
 
         {/* 错误消息 */}

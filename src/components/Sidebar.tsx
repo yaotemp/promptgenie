@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // @ts-ignore
-import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon, SearchIcon } from 'lucide-react';
+import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon } from 'lucide-react';
 import { getAllTags, Tag } from '../services/db'; // 引入获取标签的函数和类型
 
 type SidebarProps = {
@@ -145,18 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <h1 className="text-lg font-semibold text-gray-800">提示词精灵</h1>
         </div>
 
-        <div className="relative mb-6">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-            <SearchIcon size={16} />
-          </span>
-          <input
-            type="text"
-            placeholder="搜索提示词..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
-          />
-        </div>
-
-        <div className="mb-6">
+        <div className="mb-2">
           <button
             className="w-full flex items-center justify-center py-2 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-150 shadow-sm"
             onClick={onNewPrompt}

@@ -11,6 +11,8 @@ type MainContentProps = {
   onFavoriteToggle: (id: string) => void;
   onEdit: (prompt: Prompt) => void;
   onDelete: (id: string) => void;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
 };
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -19,7 +21,9 @@ const MainContent: React.FC<MainContentProps> = ({
   isLoading,
   onFavoriteToggle,
   onEdit,
-  onDelete
+  onDelete,
+  searchTerm,
+  onSearchChange
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -45,6 +49,8 @@ const MainContent: React.FC<MainContentProps> = ({
         title={title}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        searchTerm={searchTerm}
+        onSearchChange={onSearchChange}
       />
       <div className="flex-1 overflow-y-auto bg-gray-50 hide-scrollbar">
         {isLoading ? (

@@ -5,12 +5,14 @@ type HeaderProps = {
   title: string;
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
 };
 
-const Header: React.FC<HeaderProps> = ({ title, viewMode, onViewModeChange }) => {
+const Header: React.FC<HeaderProps> = ({ title, viewMode, onViewModeChange, searchTerm, onSearchChange }) => {
   return (
     <div className="h-16 px-6 flex items-center justify-between border-b border-gray-200 bg-white">
-      <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+      <h1 className="text-xl font-semibold text-gray-800 truncate whitespace-nowrap max-w-[40%]" title={title}>{title}</h1>
 
       <div className="flex items-center space-x-4">
         <div className="relative w-64">
@@ -19,6 +21,8 @@ const Header: React.FC<HeaderProps> = ({ title, viewMode, onViewModeChange }) =>
           </span>
           <input
             type="text"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
             placeholder="在当前视图中搜索..."
             className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
           />
