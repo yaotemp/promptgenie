@@ -6,8 +6,6 @@ export function formatRelativeTime(dateString: string): string {
   const secondsInMinute = 60;
   const secondsInHour = 3600;
   const secondsInDay = 86400;
-  const secondsInWeek = 604800;
-  const secondsInMonth = 2592000; // Approximate
 
   if (diffInSeconds < secondsInMinute) {
     return '刚刚';
