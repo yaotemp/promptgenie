@@ -4,7 +4,7 @@ import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
 import TagManager from './components/TagManager'; // 导入标签管理组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard } from './services/db';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt, updatePromptLastUsed } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -61,7 +61,8 @@ function App() {
 
         // 监听托盘菜单中提示词被选择的事件
         const { listen } = await import('@tauri-apps/api/event');
-        const unlisten = await listen('tray-prompt-selected', (event) => {
+        // 监听常规复制事件
+        const unlistenTrayPrompt = await listen('tray-prompt-selected', (event) => {
           const promptId = event.payload as string;
           console.log(`托盘菜单选择了提示词: ${promptId}`);
           copyPromptToClipboard(promptId)
@@ -77,9 +78,40 @@ function App() {
             });
         });
 
+        // 监听直接粘贴到输入框的事件
+        const unlistenPastePrompt = await listen('paste-prompt-content', async (event) => {
+          const promptId = event.payload as string;
+          console.log(`准备将提示词直接插入到输入框: ${promptId}`);
+
+          try {
+            // 1. 获取提示词内容
+            const prompt = await getPrompt(promptId);
+            if (!prompt) {
+              console.error(`找不到ID为${promptId}的提示词`);
+              return;
+            }
+
+            // 2. 将内容复制到剪贴板
+            const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+            await writeText(prompt.content);
+            console.log(`提示词 "${prompt.title}" 已复制到剪贴板`);
+
+            // 3. 模拟粘贴操作
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('simulate_paste');
+            console.log('已触发粘贴操作');
+
+            // 4. 更新最后使用时间
+            await updatePromptLastUsed(promptId);
+          } catch (err) {
+            console.error('粘贴提示词内容时出错:', err);
+          }
+        });
+
         // 组件卸载时移除事件监听
         return () => {
-          unlisten();
+          unlistenTrayPrompt();
+          unlistenPastePrompt();
         };
       } catch (err) {
         console.error('App: 加载数据失败:', err);

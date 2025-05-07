@@ -7,6 +7,10 @@ use tauri::{
 use tauri_plugin_clipboard_manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+// 新增：模拟粘贴操作
+#[cfg(target_os = "macos")]
+use std::process::Command as ProcessCommand;
+
 // 新增：用于从前端接收菜单项数据的结构体
 #[derive(serde::Deserialize)]
 struct PromptMenuItem {
@@ -127,6 +131,40 @@ async fn update_tray_menu<R: Runtime>(
     }
 }
 
+// 新增：模拟粘贴操作（Ctrl+V 或 Cmd+V）
+#[tauri::command]
+async fn simulate_paste() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use enigo::{Enigo, Key, KeyboardControllable};
+        let mut enigo = Enigo::new();
+        enigo.key_down(Key::Control);
+        enigo.key_click(Key::Layout('v'));
+        enigo.key_up(Key::Control);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // macOS 上使用 osascript 来模拟 Cmd+V
+        let _ = ProcessCommand::new("osascript")
+            .arg("-e")
+            .arg("tell application \"System Events\" to keystroke \"v\" using command down")
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use enigo::{Enigo, Key, KeyboardControllable};
+        let mut enigo = Enigo::new();
+        enigo.key_down(Key::Control);
+        enigo.key_click(Key::Layout('v'));
+        enigo.key_up(Key::Control);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![Migration {
@@ -136,7 +174,7 @@ pub fn run() {
         kind: MigrationKind::Up,
     }];
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(
@@ -186,16 +224,27 @@ pub fn run() {
                                 let _ = window.set_focus();
                             }
                         }
+                        "recent-title" | "no-recent" => {
+                            // 这些是不可点击或无操作的菜单项
+                        }
                         _ => {
-                            println!("Clicked dynamic menu item ID: {}", id);
+                            println!("Clicked prompt menu item ID: {}", id);
+                            // 处理提示词菜单项点击
+                            if id.starts_with("no-") {
+                                return; // 无操作项，如"无记录"
+                            }
+
+                            // 把 ID 作为 payload 发送到前端处理
                             let payload = id.to_string();
 
-                            // 使用主窗口直接发送事件
+                            // 发送事件到前端，表示要将此提示词内容直接插入到当前输入框
                             if let Some(window) = app_handle_for_event.get_webview_window("main") {
-                                match window.emit("tray-prompt-selected", payload) {
-                                    Ok(_) => {}
+                                match window.emit("paste-prompt-content", payload) {
+                                    Ok(_) => {
+                                        println!("已发送插入提示词内容事件");
+                                    }
                                     Err(e) => {
-                                        eprintln!("Failed to emit tray-prompt-selected: {}", e)
+                                        eprintln!("发送插入提示词内容事件失败: {}", e);
                                     }
                                 }
                             }
@@ -207,16 +256,37 @@ pub fn run() {
 
             Ok(())
         })
-        .on_window_event(|app, event| {
-            // 拦截主窗口关闭事件，阻止关闭并隐藏窗口
-            if app.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = app.hide();
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            update_tray_menu,
+            simulate_paste
+        ]);
+
+    // 构建应用实例
+    let app = builder
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    // 使用run方法并处理窗口事件
+    app.run(|app_handle, event| {
+        match event {
+            // 处理 close-requested 事件
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } => {
+                if label == "main" {
+                    // 获取窗口句柄
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        // 阻止窗口关闭
+                        api.prevent_close();
+                        // 隐藏窗口
+                        let _ = window.hide();
+                    }
                 }
             }
-        })
-        .invoke_handler(tauri::generate_handler![greet, update_tray_menu])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+            _ => {}
+        }
+    });
 }
