@@ -27,7 +27,6 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           content={prompt.content}
           tags={prompt.tags}
           isFavorite={prompt.isFavorite}
-          dateCreated={prompt.dateCreated}
           dateModified={prompt.dateModified}
           onFavoriteToggle={onFavoriteToggle}
           onCopy={onCopy}

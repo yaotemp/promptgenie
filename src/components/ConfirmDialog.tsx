@@ -1,5 +1,4 @@
 import React from 'react';
-import { XIcon, AlertTriangleIcon } from 'lucide-react';
 
 type ConfirmDialogProps = {
   isOpen: boolean;

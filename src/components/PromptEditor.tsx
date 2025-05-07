@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore
 import { XIcon, TagIcon, PlusIcon } from 'lucide-react';
 import { Tag, PromptInput } from '../services/db';
-import { v7 as uuidv7 } from 'uuid';
 
 type PromptEditorProps = {
   isOpen: boolean;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllTags, deleteTag, updateTag, Tag } from '../services/db';
-import { Check, X, Edit2, Trash2 } from 'lucide-react';
+import { X, Edit2, Trash2 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 
 interface TagManagerProps {
