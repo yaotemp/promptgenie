@@ -282,6 +282,7 @@ function App() {
         onTagClick={handleTagClick}
         activeFilterMode={filterMode}
         activeTagId={selectedTagId}
+        onOpenSettings={openSettings}
       />
 
       <MainContent
@@ -308,15 +309,6 @@ function App() {
 
       {/* 浮动操作按钮区 */}
       <div className="fixed right-8 bottom-8 flex flex-col space-y-3 items-end">
-        {/* 设置按钮 */}
-        <button
-          className="w-11 h-11 bg-gray-600 hover:bg-gray-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
-          onClick={openSettings}
-          aria-label="打开设置"
-        >
-          <SettingsIcon size={20} />
-        </button>
-
         {/* 添加提示词按钮 */}
         <button
           className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"

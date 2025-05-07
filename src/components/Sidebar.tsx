@@ -11,6 +11,7 @@ type SidebarProps = {
   onTagClick: (tagId: string) => void;
   activeFilterMode: 'all' | 'favorites';
   activeTagId: string | null;
+  onOpenSettings?: () => void;
 };
 
 // --- 精确的类型定义 ---
@@ -81,7 +82,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onFavoritesClick,
   onTagClick,
   activeFilterMode,
-  activeTagId
+  activeTagId,
+  onOpenSettings
 }) => {
   // tags 状态现在包含 count
   const [tags, setTags] = useState<Tag[]>([]);
@@ -213,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       <div className="p-4 border-t border-gray-200 mt-auto">
-        <button className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-150 w-full">
+        <button className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-150 w-full" onClick={onOpenSettings}>
           <SettingsIcon size={18} className="mr-2" />
           <span className="text-sm">设置</span>
         </button>
