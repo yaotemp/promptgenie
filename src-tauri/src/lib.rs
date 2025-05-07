@@ -34,12 +34,16 @@ fn greet(name: &str) -> String {
 fn handle_tray_icon_event<R: Runtime>(tray_handle: &TrayIcon<R>, event: TrayIconEvent) {
     match event {
         TrayIconEvent::Click { .. } => {
+            // 点击时显示菜单而不是主窗口
+            // 注意：我们不使用菜单，因为菜单已经通过 TrayIconBuilder 配置
+            // 在 v2 中，单击会自动显示菜单（取决于操作系统设置）
+        }
+        TrayIconEvent::DoubleClick { .. } => {
+            // 双击时显示主窗口
             if let Some(window) = tray_handle.app_handle().get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
-            } else {
-                eprintln!("无法找到主窗口 'main'");
             }
         }
         _ => {}
@@ -55,6 +59,16 @@ async fn update_tray_menu<R: Runtime>(
     // 构建菜单
     let mut menu_builder = MenuBuilder::new(&app_handle);
 
+    // 添加"显示主窗口"选项
+    menu_builder = menu_builder.item(
+        &MenuItem::with_id(&app_handle, "show-window", "显示主窗口", true, None::<&str>)
+            .map_err(|e| e.to_string())?,
+    );
+
+    // 添加分隔线
+    menu_builder = menu_builder.separator();
+
+    // 添加最近使用的提示词
     if items.is_empty() {
         menu_builder = menu_builder.item(
             &MenuItem::with_id(
@@ -150,6 +164,14 @@ pub fn run() {
                     match id {
                         "quit" => {
                             std::process::exit(0);
+                        }
+                        "show-window" => {
+                            // 显示主窗口
+                            if let Some(window) = app_handle_for_event.get_webview_window("main") {
+                                let _ = window.unminimize();
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
                         _ => {
                             println!("Clicked dynamic menu item ID: {}", id);
