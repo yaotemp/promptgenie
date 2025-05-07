@@ -519,4 +519,40 @@ export async function copyPromptToClipboard(id: string): Promise<boolean> {
     console.error('复制提示词到剪贴板失败:', err);
     return false;
   }
+}
+
+// 更新标签（修改名称或颜色）
+export async function updateTag(id: string, name: string, color: string): Promise<boolean> {
+  const currentDb = await ensureDbInitialized();
+  try {
+    await currentDb.execute(
+      `UPDATE tags SET name = $1, color = $2 WHERE id = $3`,
+      [name, color, id]
+    );
+    return true;
+  } catch (error: any) {
+    console.error("更新标签失败:", error);
+    if (error && error.stack) {
+      console.error("Stack trace:", error.stack);
+    }
+    throw error;
+  }
+}
+
+// 删除标签
+export async function deleteTag(id: string): Promise<boolean> {
+  const currentDb = await ensureDbInitialized();
+  try {
+    // 删除标签与提示词的关联
+    await currentDb.execute(`DELETE FROM prompt_tags WHERE tag_id = $1`, [id]);
+    // 删除标签本身
+    await currentDb.execute(`DELETE FROM tags WHERE id = $1`, [id]);
+    return true;
+  } catch (error: any) {
+    console.error("删除标签失败:", error);
+    if (error && error.stack) {
+      console.error("Stack trace:", error.stack);
+    }
+    throw error;
+  }
 } 

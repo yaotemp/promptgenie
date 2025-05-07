@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // @ts-ignore
 import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon, SearchIcon } from 'lucide-react';
 import { getAllTags, Tag } from '../services/db'; // 引入获取标签的函数和类型
 
 type SidebarProps = {
   onNewPrompt: () => void;
+  onOpenTagManager?: () => void; // 添加新的属性
 };
 
 // --- 精确的类型定义 ---
@@ -66,26 +67,59 @@ const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor,
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt, onOpenTagManager }) => {
   // tags 状态现在包含 count
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
 
-  // 获取标签数据
+  // 获取标签数据 - 改为可调用的函数
+  const fetchTags = useCallback(async () => {
+    try {
+      setIsLoadingTags(true);
+      const fetchedTags = await getAllTags(); // 获取带 count 的标签
+      setTags(fetchedTags);
+    } catch (err) {
+      console.error('加载标签失败:', err);
+    } finally {
+      setIsLoadingTags(false);
+    }
+  }, []);
+
+  // 初始加载标签
   useEffect(() => {
-    const fetchTags = async () => {
+    fetchTags();
+
+    // 添加监听 tauri 事件，当标签数据变更时刷新列表
+    const setupListener = async () => {
       try {
-        setIsLoadingTags(true);
-        const fetchedTags = await getAllTags(); // 获取带 count 的标签
-        setTags(fetchedTags);
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlisten = await listen('tags-changed', () => {
+          console.log('收到标签变更事件，刷新标签列表');
+          fetchTags();
+        });
+
+        return unlisten;
       } catch (err) {
-        console.error('加载标签失败:', err);
-      } finally {
-        setIsLoadingTags(false);
+        console.error('设置标签变更监听失败:', err);
+        return () => { };
       }
     };
-    fetchTags();
-  }, []);
+
+    const unlistenPromise = setupListener();
+
+    // 清理函数
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
+  }, [fetchTags]);
+
+  // 处理标签管理按钮点击
+  const handleTagManagerClick = () => {
+    // 打开标签管理器前刷新标签列表
+    fetchTags().then(() => {
+      if (onOpenTagManager) onOpenTagManager();
+    });
+  };
 
   return (
     <div className="w-60 h-full border-r border-gray-200 bg-white flex flex-col">
@@ -120,8 +154,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewPrompt }) => {
         <ul>
           <SidebarItem icon={<FolderIcon size={18} />} label="所有提示词" active />
           <SidebarItem icon={<StarIcon size={18} />} label="收藏提示词" />
-          {/* 可以保留或修改"标签管理" */}
-          {/* <SidebarItem icon={<TagIcon size={18} />} label="标签管理" /> */}
+          {/* 添加标签管理链接 */}
+          <SidebarItem
+            icon={<TagIcon size={18} />}
+            label="标签管理"
+            onClick={handleTagManagerClick}
+          />
         </ul>
 
         <div className="mt-6 mb-2 px-3">

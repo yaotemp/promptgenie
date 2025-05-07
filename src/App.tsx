@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
+import TagManager from './components/TagManager'; // 导入标签管理组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
 import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard } from './services/db';
 
@@ -11,6 +12,7 @@ function App() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTagManagerOpen, setIsTagManagerOpen] = useState(false); // 添加标签管理状态
 
   // 确认对话框状态
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -138,10 +140,38 @@ function App() {
     }
   };
 
+  // 添加标签状态变化事件处理
+  const handleTagsChanged = async () => {
+    // 当标签被修改或删除后重新加载提示词列表，确保标签变更反映到UI上
+    try {
+      setIsLoading(true);
+      const loadedPrompts = await getAllPrompts();
+      setPrompts(loadedPrompts);
+    } catch (err) {
+      console.error('刷新提示词列表失败:', err);
+      setError('刷新数据失败，请重试。');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 打开标签管理器
+  const openTagManager = () => {
+    setIsTagManagerOpen(true);
+  };
+
+  // 关闭标签管理器
+  const closeTagManager = async () => {
+    setIsTagManagerOpen(false);
+    // 关闭标签管理器后刷新数据
+    await handleTagsChanged();
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
       <Sidebar
         onNewPrompt={() => handleEditorOpen()}
+        onOpenTagManager={openTagManager}
       />
 
       <MainContent
@@ -194,6 +224,12 @@ function App() {
         }}
         onClose={handleEditorClose}
         onSave={handleSavePrompt}
+      />
+
+      {/* 标签管理模态框 */}
+      <TagManager
+        isOpen={isTagManagerOpen}
+        onClose={closeTagManager}
       />
 
       {/* 删除确认对话框 */}
