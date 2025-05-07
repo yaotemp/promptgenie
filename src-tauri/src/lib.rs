@@ -172,6 +172,15 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|app, event| {
+            // 拦截主窗口关闭事件，阻止关闭并隐藏窗口
+            if app.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = app.hide();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![greet, update_tray_menu])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
