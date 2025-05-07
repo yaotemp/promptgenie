@@ -3,7 +3,9 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import PromptEditor from './components/PromptEditor';
 import TagManager from './components/TagManager'; // 导入标签管理组件
+import Settings from './components/Settings'; // 导入设置组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
+import { SettingsIcon } from 'lucide-react';
 import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt, updatePromptLastUsed } from './services/db';
 
 function App() {
@@ -13,6 +15,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false); // 添加标签管理状态
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // 添加设置状态
 
   // 当前过滤模式
   const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
@@ -96,10 +99,17 @@ function App() {
             await writeText(prompt.content);
             console.log(`提示词 "${prompt.title}" 已复制到剪贴板`);
 
-            // 3. 模拟粘贴操作
-            const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('simulate_paste');
-            console.log('已触发粘贴操作');
+            // 3. 检查是否启用了自动插入功能
+            const trayAutoInsert = localStorage.getItem('trayAutoInsert') !== 'false'; // 默认为 true
+
+            if (trayAutoInsert) {
+              // 模拟粘贴操作
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('simulate_paste');
+              console.log('已触发粘贴操作');
+            } else {
+              console.log('自动插入功能已禁用，仅复制到剪贴板');
+            }
 
             // 4. 更新最后使用时间
             await updatePromptLastUsed(promptId);
@@ -222,6 +232,16 @@ function App() {
     await handleTagsChanged();
   };
 
+  // 打开设置
+  const openSettings = () => {
+    setIsSettingsOpen(true);
+  };
+
+  // 关闭设置
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+  };
+
   // 处理侧边栏收藏项点击
   const handleFavoritesClick = () => {
     setFilterMode('favorites');
@@ -286,8 +306,18 @@ function App() {
         </div>
       )}
 
-      {/* 浮动添加按钮 */}
-      <div className="fixed right-8 bottom-8">
+      {/* 浮动操作按钮区 */}
+      <div className="fixed right-8 bottom-8 flex flex-col space-y-3 items-end">
+        {/* 设置按钮 */}
+        <button
+          className="w-11 h-11 bg-gray-600 hover:bg-gray-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
+          onClick={openSettings}
+          aria-label="打开设置"
+        >
+          <SettingsIcon size={20} />
+        </button>
+
+        {/* 添加提示词按钮 */}
         <button
           className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
           onClick={() => handleEditorOpen()}
@@ -320,6 +350,12 @@ function App() {
       <TagManager
         isOpen={isTagManagerOpen}
         onClose={closeTagManager}
+      />
+
+      {/* 设置模态框 */}
+      <Settings
+        isOpen={isSettingsOpen}
+        onClose={closeSettings}
       />
 
       {/* 删除确认对话框 */}

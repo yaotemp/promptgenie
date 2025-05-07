@@ -2,7 +2,7 @@
 use tauri::{
     menu::{MenuBuilder, MenuItem},
     tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, Runtime,
+    AppHandle, Emitter, Manager, Runtime, WindowEvent,
 };
 use tauri_plugin_clipboard_manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -165,6 +165,60 @@ async fn simulate_paste() -> Result<(), String> {
     Ok(())
 }
 
+// 新增：检查辅助功能权限状态
+#[tauri::command]
+async fn check_accessibility_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        // macOS 上使用 osascript 检查应用是否有辅助功能权限
+        match ProcessCommand::new("osascript")
+            .arg("-e")
+            .arg("tell application \"System Events\" to keystroke \"\"")
+            .output()
+        {
+            Ok(output) => output.status.success(),
+            Err(_) => false,
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        // 其他平台暂时默认为已授权
+        true
+    }
+}
+
+// 新增：打开系统辅助功能设置
+#[tauri::command]
+async fn open_accessibility_settings() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // macOS 上打开辅助功能设置页面
+        let _ = ProcessCommand::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows 上打开相关设置页面
+        let _ = ProcessCommand::new("cmd")
+            .args(["/c", "start", "ms-settings:easeofaccess-keyboard"])
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux 上暂时没有标准方法
+        return Err("在此平台上不支持自动打开系统设置".to_string());
+    }
+
+    Ok(())
+}
+
+// 定义插件入口函数
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![Migration {
@@ -259,7 +313,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             update_tray_menu,
-            simulate_paste
+            simulate_paste,
+            check_accessibility_permission,
+            open_accessibility_settings
         ]);
 
     // 构建应用实例
