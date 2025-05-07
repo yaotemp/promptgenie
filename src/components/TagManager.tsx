@@ -178,7 +178,7 @@ const TagManager: React.FC<TagManagerProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
+        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto hide-scrollbar">
           {isLoading && <div className="text-center py-4">加载中...</div>}
 
           {error && <div className="text-red-500 py-2 mb-4">{error}</div>}

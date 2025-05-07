@@ -165,7 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <nav className="flex-1 px-2 overflow-y-auto">
+      <nav className="flex-1 px-2 overflow-y-auto hide-scrollbar">
         <ul>
           <SidebarItem
             icon={<FolderIcon size={18} />}
