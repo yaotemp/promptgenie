@@ -11,6 +11,12 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 #[cfg(target_os = "macos")]
 use std::process::Command as ProcessCommand;
 
+#[cfg(target_os = "windows")]
+use std::process::Command as ProcessCommand;
+
+#[cfg(target_os = "linux")]
+use std::process::Command as ProcessCommand;
+
 // 新增：用于从前端接收菜单项数据的结构体
 #[derive(serde::Deserialize)]
 struct PromptMenuItem {
