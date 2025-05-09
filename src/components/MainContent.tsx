@@ -55,7 +55,7 @@ const MainContent: React.FC<MainContentProps> = ({
       <div className="flex-1 overflow-y-auto bg-gray-50 hide-scrollbar">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
             <span className="ml-2 text-gray-600">加载中...</span>
           </div>
         ) : prompts.length === 0 ? (

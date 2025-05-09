@@ -341,7 +341,7 @@ function App() {
         <div className="fixed right-8 bottom-8 flex flex-col space-y-3 items-end">
           {/* 添加提示词按钮 */}
           <button
-            className="w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
+            className="w-14 h-14 bg-primary-500 hover:bg-primary-600 text-white rounded-full shadow-lg flex items-center justify-center transition-colors"
             onClick={() => handleEditorOpen()}
             aria-label="创建新提示词"
           >

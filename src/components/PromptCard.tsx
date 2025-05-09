@@ -68,14 +68,14 @@ const PromptCard: React.FC<PromptCardProps> = ({
 
         <div className="flex space-x-1">
           <button
-            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
             onClick={() => onCopy(id)}
             title="复制提示词"
           >
             <CopyIcon size={16} />
           </button>
           <button
-            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
             onClick={onEdit}
             title="编辑提示词"
           >

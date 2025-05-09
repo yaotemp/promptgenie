@@ -41,12 +41,12 @@ const SidebarItem: React.FC<GenericSidebarItemProps> = ({ icon, label, active = 
   // 非标签项的样式（所有提示词、收藏等）
   return (
     <li
-      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
+      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
       onClick={onClick}
     >
       <div className="flex items-center flex-1">
         {/* icon 现在是必需的，直接使用 */}
-        <span className={`mr-2 ${active ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'}`}>{icon}</span>
+        <span className={`mr-2 ${active ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`}>{icon}</span>
         <span className="text-sm font-medium">{label}</span>
       </div>
     </li>
@@ -57,7 +57,7 @@ const SidebarItem: React.FC<GenericSidebarItemProps> = ({ icon, label, active = 
 const TagSidebarItem: React.FC<TagSidebarItemProps> = ({ label, count, tagColor, active, onClick }) => {
   return (
     <li
-      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
+      className={`flex items-center px-3 py-2 rounded-lg mb-1 cursor-pointer group transition-all duration-150 ${active ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-100'}`}
       onClick={onClick}
     >
       <div className="flex items-center flex-1">
@@ -147,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="mb-2">
           <button
-            className="w-full flex items-center justify-center py-2 px-4 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-150 shadow-sm"
+            className="w-full flex items-center justify-center py-2 px-4 bg-primary-50 text-primary-500 hover:bg-primary-100 rounded-lg transition-colors duration-150 shadow-sm"
             onClick={onNewPrompt}
           >
             <PlusCircleIcon size={18} className="mr-2" />
