@@ -7,6 +7,10 @@
 
 ---
 
+## 解决的问题
+你是不是经常看到一些精彩使用的AI提示词，却因为没有一个好的统一管理工具，所以散落在各个地方，每次都要翻各种笔记软件、历史记录，找回那些写过但记不清的提示词？
+提示词精灵就是为此而生的：他提供一个统一的记录空间，并且常驻在你的系统托盘，点击即可一键复制最常用的 Prompt，省去翻箱倒柜、重复操作，让 AI提示词真正成为你最强大的武器！
+
 ## ✨ 核心功能
 
 - 🌗 **托盘常驻**：快捷访问，一键复制使用
@@ -27,9 +31,10 @@
 
 ## 📦 下载与安装
 
-> 当前版本仅支持 macOS
+> 当前版本支持 macOS和Windows
 
-### 👉 [点击下载最新版](https://yourdomain.com/download/PromptGenie.dmg)
+### 👉 [点击下载MacOS最新版](https://witness-1252789080.cos.ap-shanghai.myqcloud.com/promptgenie/downloads/%E6%8F%90%E7%A4%BA%E8%AF%8D%E7%B2%BE%E7%81%B5_0.1.0.dmg)
+### 👉 [点击下载Windows最新版](https://witness-1252789080.cos.ap-shanghai.myqcloud.com/promptgenie/downloads/%E6%8F%90%E7%A4%BA%E8%AF%8D%E7%B2%BE%E7%81%B5_0.1.0.exe)
 
 或手动构建：
 
@@ -69,19 +74,19 @@ pnpm tauri dev
 
 ### 关于提示词精灵
 
-**提示词精灵（PromptGenie）是一款 macOS 上的系统级提示词管理工具**，由 [大创](https://www.xiaohongshu.com/user/profile) 开发，专为 AI 工具的重度使用者打造。它常驻在系统托盘，支持查看、收藏、分组、搜索和一键复制提示词，帮助你更高效地使用 ChatGPT、Midjourney、Claude 等 AI 工具。
+**提示词精灵（PromptGenie）是一款 macOS 上的系统级提示词管理工具**，由 [创哥](https://www.xiaohongshu.com/user/profile/58a6796a5e87e77c148a64ae) 开发，专为 AI 工具的重度使用者打造。它常驻在系统托盘，支持查看、收藏、分组、搜索和一键复制提示词，帮助你更高效地使用 ChatGPT、Midjourney、Claude 等 AI 工具。
 
-提示词精灵 是我在做 [Together](https://your-together-site.com)（一款围绕执行力打造的行为辅助类 App）过程中开发的配套工具，服务于 AI 创作过程中的「输入效率」场景。
+提示词精灵 是我在做 [Together]( https://togetheryiqi.com/download/app)（一款围绕执行力打造的行为辅助类 App）过程中开发的配套工具，服务于 AI 创作过程中的「输入效率」场景。
 
 ---
 
 ### 为什么开源？
 
-我们开源提示词精灵，是因为我们相信：
+选择开源提示词精灵，是因为我相信：
 
 - 🚀 **高效工作，值得被分享**  
 - 🛠️ **欢迎一起打磨工具**  
-- 📣 **促进 Together 的产品生态**
+- 📣 **帮助更多人，更加充分的利用AI的力量，强大自己，丰富世界**
 
 ---
 
@@ -95,9 +100,9 @@ pnpm tauri dev
 
 ---
 
-## 🤝 我们欢迎的贡献
+## 🤝 欢迎的贡献
 
-- ✨ 新功能建议（如快捷键、自定义模版、云同步）  
+- ✨ 新功能建议
 - 🐛 Bug 修复 / UI 优化  
 - 📦 PR 或插件机制探索  
 - 📣 推荐给朋友或在社区分享  
@@ -106,14 +111,15 @@ pnpm tauri dev
 
 ## 👤 关于作者
 
-我是 **大创**，程序员 & 创业者，正在构建围绕「执行力」打造的产品 [Together](https://your-together-site.com)。  
+我是 **创哥**，前字节程序员 & 创业者，正在构建围绕「执行力」打造的产品 [Together]( https://togetheryiqi.com/download/app)。  
 提示词精灵 是我解决自己痛点过程中写下的一个小工具，也许也能帮你节省不少时间。
 
 你可以在以下平台找到我：
 
-- 小红书：[大创](https://www.xiaohongshu.com/user/profile)
-- GitHub：[github.com/yourname](https://github.com/yourname)
-- 邮箱：your@email.com
+- 小红书：[小创作](https://www.xiaohongshu.com/user/profile/58a6796a5e87e77c148a64ae)
+- 小红书：[小创作小创](https://space.bilibili.com/52807953)
+- GitHub：[github.com/yourname](https://github.com/chriszou)
+- 邮箱：thechriszou@126.com
 
 ---
 
