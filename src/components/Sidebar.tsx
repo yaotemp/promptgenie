@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // @ts-ignore
-import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon } from 'lucide-react';
+import { FolderIcon, PlusCircleIcon, StarIcon, TagIcon, SettingsIcon, SettingsIcon as CogIcon } from 'lucide-react';
 import { getAllTags, Tag } from '../services/db'; // 引入获取标签的函数和类型
 
 type SidebarProps = {
@@ -170,16 +170,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             active={activeFilterMode === 'favorites'}
             onClick={onFavoritesClick}
           />
-          {/* 添加标签管理链接 */}
-          <SidebarItem
-            icon={<TagIcon size={18} />}
-            label="标签管理"
-            onClick={handleTagManagerClick}
-          />
         </ul>
 
-        <div className="mt-6 mb-2 px-3">
+        <div className="mt-6 mb-2 px-3 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">标签</h3>
+          <button
+            className="p-1 text-gray-400 hover:text-primary-500 rounded transition-colors"
+            onClick={handleTagManagerClick}
+            title="管理标签"
+          >
+            <CogIcon size={14} />
+          </button>
         </div>
 
         {isLoadingTags ? (
