@@ -2,7 +2,7 @@
 use tauri::{
     menu::{MenuBuilder, MenuItem},
     tray::{TrayIcon, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, Runtime, WindowEvent,
+    AppHandle, Emitter, Manager, Runtime,
 };
 use tauri_plugin_clipboard_manager;
 use tauri_plugin_sql::{Migration, MigrationKind};

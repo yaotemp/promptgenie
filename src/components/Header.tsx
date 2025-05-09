@@ -1,5 +1,5 @@
 import React from 'react';
-import { SearchIcon, SlidersIcon, GridIcon, ListIcon } from 'lucide-react';
+import { SearchIcon, GridIcon, ListIcon } from 'lucide-react';
 
 type HeaderProps = {
   title: string;
