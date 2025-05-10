@@ -20,6 +20,16 @@
 
 ---
 
+## 🖥️ 截图预览
+
+APP主界面
+![](https://cdnw.togetherdaka.com/promptgenie/app/app_main.png)
+
+系统状态栏下拉菜单
+![](https://cdnw.togetherdaka.com/promptgenie/app/tray.png)
+
+---
+
 ## 📦 下载与安装
 
 > 当前版本支持 macOS和Windows
@@ -108,7 +118,7 @@ pnpm tauri dev
 你可以在以下平台找到我：
 
 - 小红书：[小创作](https://www.xiaohongshu.com/user/profile/58a6796a5e87e77c148a64ae)
-- 小红书：[小创作小创](https://space.bilibili.com/52807953)
+- B站：[小创作小创](https://space.bilibili.com/52807953)
 - GitHub：[github.com/yourname](https://github.com/chriszou)
 - 邮箱：thechriszou@126.com
 
