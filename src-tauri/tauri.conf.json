@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "提示词精灵",
         "width": 800,
         "height": 600

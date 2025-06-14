@@ -5,9 +5,9 @@ use tauri::{
     AppHandle, Emitter, Manager, Runtime,
 };
 use tauri_plugin_clipboard_manager;
-use tauri_plugin_sql::{Migration, MigrationKind};
 use tauri_plugin_dialog;
 use tauri_plugin_fs;
+use tauri_plugin_sql::{Migration, MigrationKind};
 
 // 新增：模拟粘贴操作
 #[cfg(target_os = "macos")]
@@ -237,6 +237,29 @@ pub fn run() {
     }];
 
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            println!("单实例回调被触发！尝试聚焦现有窗口...");
+            
+            // 尝试获取主窗口 - 先尝试 "main"，然后尝试获取所有窗口
+            if let Some(window) = app.get_webview_window("main") {
+                println!("找到窗口 'main'，正在聚焦...");
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                // 如果找不到 "main" 窗口，尝试获取第一个可用窗口
+                println!("未找到窗口 'main'，尝试获取所有窗口...");
+                let windows = app.webview_windows();
+                if let Some((label, window)) = windows.iter().next() {
+                    println!("找到窗口 '{}'，正在聚焦...", label);
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                } else {
+                    println!("未找到任何窗口！");
+                }
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
