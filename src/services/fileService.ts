@@ -51,6 +51,7 @@ export async function importFromFile(options: ImportOptions): Promise<ImportResu
         importedPrompts: 0,
         importedTags: 0,
         skippedPrompts: 0,
+        skippedTags: 0,
         errors: []
       };
     }
@@ -69,6 +70,7 @@ export async function importFromFile(options: ImportOptions): Promise<ImportResu
         importedPrompts: 0,
         importedTags: 0,
         skippedPrompts: 0,
+        skippedTags: 0,
         errors: ['JSON 解析失败']
       };
     }
@@ -81,6 +83,7 @@ export async function importFromFile(options: ImportOptions): Promise<ImportResu
         importedPrompts: 0,
         importedTags: 0,
         skippedPrompts: 0,
+        skippedTags: 0,
         errors: ['数据格式验证失败']
       };
     }
@@ -97,6 +100,7 @@ export async function importFromFile(options: ImportOptions): Promise<ImportResu
       importedPrompts: 0,
       importedTags: 0,
       skippedPrompts: 0,
+      skippedTags: 0,
       errors: [error instanceof Error ? error.message : String(error)]
     };
   }

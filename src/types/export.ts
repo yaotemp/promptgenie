@@ -50,5 +50,6 @@ export interface ImportResult {
   importedPrompts: number;
   importedTags: number;
   skippedPrompts: number;
+  skippedTags: number;
   errors: string[];
 } 

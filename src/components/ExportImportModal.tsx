@@ -57,6 +57,7 @@ export default function ExportImportModal({ isOpen, onClose, onImportSuccess }: 
         importedPrompts: 0,
         importedTags: 0,
         skippedPrompts: 0,
+        skippedTags: 0,
         errors: [error instanceof Error ? error.message : String(error)]
       });
     } finally {
@@ -206,8 +207,8 @@ export default function ExportImportModal({ isOpen, onClose, onImportSuccess }: 
                   {importResult.success && (
                     <div className="mt-2 text-xs text-green-700">
                       <p>导入了 {importResult.importedPrompts} 个提示词，{importResult.importedTags} 个标签</p>
-                      {importResult.skippedPrompts > 0 && (
-                        <p>跳过了 {importResult.skippedPrompts} 个重复项</p>
+                      {(importResult.skippedPrompts > 0 || importResult.skippedTags > 0) && (
+                        <p>跳过了 {importResult.skippedPrompts} 个重复提示词{importResult.skippedTags > 0 ? `，${importResult.skippedTags} 个重复标签` : ''}</p>
                       )}
                     </div>
                   )}

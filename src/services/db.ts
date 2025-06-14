@@ -743,6 +743,7 @@ export async function importData(data: any, options: any): Promise<any> {
   let importedPrompts = 0;
   let importedTags = 0;
   let skippedPrompts = 0;
+  let skippedTags = 0;
   const errors: string[] = [];
   
   try {
@@ -751,20 +752,25 @@ export async function importData(data: any, options: any): Promise<any> {
       for (const tag of data.tags) {
         try {
           const existing = await currentDb.select<any[]>(`
-            SELECT id FROM tags WHERE id = $1 OR name = $2
-          `, [tag.id, tag.name]);
+            SELECT id FROM tags WHERE name = $1
+          `, [tag.name]);
           
           if (existing.length === 0) {
+            // 标签不存在，创建新标签
             await currentDb.execute(`
               INSERT INTO tags (id, name, color, created_at)
               VALUES ($1, $2, $3, $4)
             `, [tag.id, tag.name, tag.color, tag.dateCreated]);
             importedTags++;
           } else if (options.mode === 'overwrite') {
+            // 覆盖模式：更新现有标签
             await currentDb.execute(`
-              UPDATE tags SET name = $2, color = $3 WHERE id = $1
-            `, [existing[0].id, tag.name, tag.color]);
+              UPDATE tags SET color = $2 WHERE id = $1
+            `, [existing[0].id, tag.color]);
             importedTags++;
+          } else {
+            // 跳过或合并模式：跳过已存在的标签
+            skippedTags++;
           }
         } catch (error) {
           errors.push(`导入标签 ${tag.name} 失败: ${error instanceof Error ? error.message : String(error)}`);
@@ -786,6 +792,7 @@ export async function importData(data: any, options: any): Promise<any> {
         
         // 处理不同的导入模式
         let targetPromptGroupId = prompt.promptGroupId;
+        let shouldImport = true;
         
         if (existing.length > 0) {
           if (options.mode === 'overwrite') {
@@ -804,9 +811,27 @@ export async function importData(data: any, options: any): Promise<any> {
               continue;
             }
           } else if (options.mode === 'merge') {
-            // 合并模式：为新数据生成新的 promptGroupId
-            targetPromptGroupId = uuidv7();
+            // 合并模式：检查是否存在相同标题和内容的提示词
+            const latestVersion = prompt.versions.find((v: any) => v.isLatest) || prompt.versions[0];
+            const duplicateCheck = await currentDb.select<any[]>(`
+              SELECT p.prompt_group_id FROM prompts p
+              WHERE p.title = $1 AND p.content = $2 AND p.is_latest = 1
+              LIMIT 1
+            `, [prompt.title, latestVersion.content]);
+            
+            if (duplicateCheck.length > 0) {
+              // 发现重复内容，跳过导入
+              skippedPrompts++;
+              shouldImport = false;
+            } else {
+              // 没有重复，生成新的 promptGroupId
+              targetPromptGroupId = uuidv7();
+            }
           }
+        }
+        
+        if (!shouldImport) {
+          continue;
         }
         
         // 插入版本
@@ -874,10 +899,11 @@ export async function importData(data: any, options: any): Promise<any> {
     
     return {
       success: true,
-      message: `成功导入 ${importedPrompts} 个提示词和 ${importedTags} 个标签`,
+      message: `成功导入 ${importedPrompts} 个提示词和 ${importedTags} 个标签${skippedPrompts > 0 ? `，跳过 ${skippedPrompts} 个重复提示词` : ''}${skippedTags > 0 ? `，跳过 ${skippedTags} 个重复标签` : ''}`,
       importedPrompts,
       importedTags,
       skippedPrompts,
+      skippedTags,
       errors
     };
     
@@ -888,6 +914,7 @@ export async function importData(data: any, options: any): Promise<any> {
       importedPrompts,
       importedTags,
       skippedPrompts,
+      skippedTags,
       errors: [...errors, error instanceof Error ? error.message : String(error)]
     };
   }
