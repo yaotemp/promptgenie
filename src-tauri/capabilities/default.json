@@ -17,6 +17,13 @@
     "opener:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
+    "dialog:default",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-exists",
     "sql:default",
     "sql:allow-execute",
     "sql:allow-load"

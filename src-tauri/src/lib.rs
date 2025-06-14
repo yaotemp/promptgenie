@@ -6,6 +6,8 @@ use tauri::{
 };
 use tauri_plugin_clipboard_manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
+use tauri_plugin_dialog;
+use tauri_plugin_fs;
 
 // 新增：模拟粘贴操作
 #[cfg(target_os = "macos")]
@@ -237,6 +239,8 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:promptgenie.db", migrations)

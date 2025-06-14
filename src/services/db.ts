@@ -661,4 +661,234 @@ export async function deleteTag(id: string): Promise<boolean> {
     }
     throw error;
   }
+}
+
+// 导出所有数据
+export async function exportAllData(): Promise<any> {
+  const currentDb = await ensureDbInitialized();
+  
+  // 获取所有提示词组
+  const promptGroups = await currentDb.select<any[]>(`
+    SELECT DISTINCT prompt_group_id, title, is_favorite, created_at, updated_at
+    FROM prompts 
+    WHERE is_latest = 1
+  `);
+  
+  const exportPrompts = [];
+  
+  for (const group of promptGroups) {
+    // 获取该组的所有版本
+    const versions = await currentDb.select<any[]>(`
+      SELECT * FROM prompts 
+      WHERE prompt_group_id = $1 
+      ORDER BY version ASC
+    `, [group.prompt_group_id]);
+    
+    // 获取标签
+    const latestVersion = versions.find(v => v.is_latest === 1);
+    const tags = latestVersion ? await currentDb.select<any[]>(`
+      SELECT t.id 
+      FROM tags t
+      JOIN prompt_tags pt ON t.id = pt.tag_id
+      WHERE pt.prompt_id = $1
+    `, [latestVersion.id]) : [];
+    
+    exportPrompts.push({
+      promptGroupId: group.prompt_group_id,
+      title: group.title,
+      isFavorite: group.is_favorite === 1,
+      dateCreated: group.created_at,
+      dateModified: group.updated_at,
+      versions: versions.map(v => ({
+        id: v.id,
+        version: v.version,
+        content: v.content,
+        isLatest: v.is_latest === 1,
+        dateCreated: v.created_at
+      })),
+      tags: tags.map(t => t.id)
+    });
+  }
+  
+  // 获取所有标签
+  const allTags = await currentDb.select<any[]>(`
+    SELECT * FROM tags ORDER BY name ASC
+  `);
+  
+  const exportTags = allTags.map(tag => ({
+    id: tag.id,
+    name: tag.name,
+    color: tag.color,
+    dateCreated: tag.created_at
+  }));
+  
+  return {
+    version: "1.0.0",
+    exportDate: new Date().toISOString(),
+    metadata: {
+      appVersion: "1.0.0",
+      totalPrompts: exportPrompts.length,
+      totalTags: exportTags.length,
+      exportedBy: "PromptGenie"
+    },
+    prompts: exportPrompts,
+    tags: exportTags
+  };
+}
+
+// 导入数据
+export async function importData(data: any, options: any): Promise<any> {
+  const currentDb = await ensureDbInitialized();
+  
+  let importedPrompts = 0;
+  let importedTags = 0;
+  let skippedPrompts = 0;
+  const errors: string[] = [];
+  
+  try {
+    // 导入标签（不使用事务，每个操作独立执行）
+    if (options.includeTags && data.tags) {
+      for (const tag of data.tags) {
+        try {
+          const existing = await currentDb.select<any[]>(`
+            SELECT id FROM tags WHERE id = $1 OR name = $2
+          `, [tag.id, tag.name]);
+          
+          if (existing.length === 0) {
+            await currentDb.execute(`
+              INSERT INTO tags (id, name, color, created_at)
+              VALUES ($1, $2, $3, $4)
+            `, [tag.id, tag.name, tag.color, tag.dateCreated]);
+            importedTags++;
+          } else if (options.mode === 'overwrite') {
+            await currentDb.execute(`
+              UPDATE tags SET name = $2, color = $3 WHERE id = $1
+            `, [existing[0].id, tag.name, tag.color]);
+            importedTags++;
+          }
+        } catch (error) {
+          errors.push(`导入标签 ${tag.name} 失败: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
+    
+    // 导入提示词
+    for (const prompt of data.prompts) {
+      try {
+        const existing = await currentDb.select<any[]>(`
+          SELECT prompt_group_id FROM prompts WHERE prompt_group_id = $1 LIMIT 1
+        `, [prompt.promptGroupId]);
+        
+        if (existing.length > 0 && options.mode === 'skip') {
+          skippedPrompts++;
+          continue;
+        }
+        
+        // 处理不同的导入模式
+        let targetPromptGroupId = prompt.promptGroupId;
+        
+        if (existing.length > 0) {
+          if (options.mode === 'overwrite') {
+            // 覆盖模式：删除现有数据
+            try {
+              await currentDb.execute(`
+                DELETE FROM prompt_tags WHERE prompt_id IN (
+                  SELECT id FROM prompts WHERE prompt_group_id = $1
+                )
+              `, [prompt.promptGroupId]);
+              await currentDb.execute(`
+                DELETE FROM prompts WHERE prompt_group_id = $1
+              `, [prompt.promptGroupId]);
+            } catch (deleteError) {
+              errors.push(`删除现有提示词 ${prompt.title} 失败: ${deleteError instanceof Error ? deleteError.message : String(deleteError)}`);
+              continue;
+            }
+          } else if (options.mode === 'merge') {
+            // 合并模式：为新数据生成新的 promptGroupId
+            targetPromptGroupId = uuidv7();
+          }
+        }
+        
+        // 插入版本
+        let versionInserted = false;
+        for (const version of prompt.versions) {
+          if (!options.includeVersionHistory && !version.isLatest) {
+            continue;
+          }
+          
+          try {
+            // 为每个版本生成新的ID以避免冲突
+            const versionId = uuidv7();
+            
+            await currentDb.execute(`
+              INSERT INTO prompts (
+                id, prompt_group_id, version, is_latest, title, content, 
+                is_favorite, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `, [
+              versionId,
+              targetPromptGroupId,
+              version.version,
+              version.isLatest ? 1 : 0,
+              prompt.title,
+              version.content,
+              prompt.isFavorite ? 1 : 0,
+              version.dateCreated,
+              prompt.dateModified
+            ]);
+            
+            versionInserted = true;
+            
+            // 插入标签关联
+            if (options.includeTags && prompt.tags && prompt.tags.length > 0) {
+              for (const tagId of prompt.tags) {
+                try {
+                  // 检查标签是否存在
+                  const tagExists = await currentDb.select<any[]>(`
+                    SELECT id FROM tags WHERE id = $1
+                  `, [tagId]);
+                  
+                  if (tagExists.length > 0) {
+                    await currentDb.execute(`
+                      INSERT OR IGNORE INTO prompt_tags (prompt_id, tag_id)
+                      VALUES ($1, $2)
+                    `, [versionId, tagId]);
+                  }
+                } catch (tagError) {
+                  console.warn(`插入标签关联失败: ${tagError}`);
+                }
+              }
+            }
+          } catch (versionError) {
+            errors.push(`导入提示词版本 ${prompt.title} v${version.version} 失败: ${versionError instanceof Error ? versionError.message : String(versionError)}`);
+          }
+        }
+        
+        if (versionInserted) {
+          importedPrompts++;
+        }
+      } catch (error) {
+        errors.push(`导入提示词 ${prompt.title} 失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    return {
+      success: true,
+      message: `成功导入 ${importedPrompts} 个提示词和 ${importedTags} 个标签`,
+      importedPrompts,
+      importedTags,
+      skippedPrompts,
+      errors
+    };
+    
+  } catch (error) {
+    return {
+      success: false,
+      message: `导入失败: ${error instanceof Error ? error.message : String(error)}`,
+      importedPrompts,
+      importedTags,
+      skippedPrompts,
+      errors: [...errors, error instanceof Error ? error.message : String(error)]
+    };
+  }
 } 

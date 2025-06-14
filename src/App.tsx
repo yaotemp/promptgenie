@@ -7,7 +7,7 @@ import Settings from './components/Settings'; // 导入设置组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
 import PromptHistory from './components/PromptHistory';
 import PromptVersionView from './components/PromptVersionView';
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, getPromptByVersionId, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt } from './services/db';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, getPromptByVersionId, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -233,6 +233,22 @@ function App() {
     }
   };
 
+  // 处理数据变更（用于导入后刷新）
+  const handleDataChange = async () => {
+    try {
+      setIsLoading(true);
+      const updatedPrompts = await getAllPrompts();
+      setPrompts(updatedPrompts);
+      // 更新托盘菜单
+      await updateTrayMenu();
+    } catch (err) {
+      console.error('刷新数据失败:', err);
+      setError('刷新数据失败，请重试。');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 打开标签管理器
   const openTagManager = () => {
     setIsTagManagerOpen(true);
@@ -357,6 +373,7 @@ function App() {
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
           onHistory={handleHistoryOpen}
+          onDataChange={handleDataChange}
         />
 
         {/* 错误消息 */}

@@ -10,6 +10,7 @@
       "ES2023"
     ],
     "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "strict": true,
