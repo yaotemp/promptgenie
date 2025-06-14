@@ -1,14 +1,15 @@
 import React from 'react';
-import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon } from 'lucide-react';
+import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon } from 'lucide-react';
 import { Prompt } from '../services/db';
 import { formatRelativeTime } from '../utils/time';
 
 type PromptListProps = {
   prompts: Prompt[];
-  onFavoriteToggle: (id: string) => void;
+  onFavoriteToggle: (promptGroupId: string) => void;
   onCopy: (id: string) => void;
   onEdit: (prompt: Prompt) => void;
-  onDelete: (id: string) => void;
+  onDelete: (promptGroupId: string) => void;
+  onHistory: (promptGroupId: string) => void;
 };
 
 const PromptList: React.FC<PromptListProps> = ({
@@ -16,7 +17,8 @@ const PromptList: React.FC<PromptListProps> = ({
   onFavoriteToggle,
   onCopy,
   onEdit,
-  onDelete
+  onDelete,
+  onHistory
 }) => {
   return (
     <div className="w-full overflow-x-auto">
@@ -62,13 +64,20 @@ const PromptList: React.FC<PromptListProps> = ({
               <td className="px-6 py-4 text-center">
                 <button
                   className={`p-1 rounded-full ${prompt.isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-300 hover:text-gray-400'}`}
-                  onClick={() => onFavoriteToggle(prompt.id)}
+                  onClick={() => onFavoriteToggle(prompt.promptGroupId)}
                 >
                   <StarIcon size={18} fill={prompt.isFavorite ? 'currentColor' : 'none'} />
                 </button>
               </td>
               <td className="px-6 py-4 text-right">
                 <div className="flex justify-end space-x-1">
+                  <button
+                    className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
+                    onClick={() => onHistory(prompt.promptGroupId)}
+                    title="查看历史记录"
+                  >
+                    <HistoryIcon size={16} />
+                  </button>
                   <button
                     className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
                     onClick={() => onCopy(prompt.id)}
@@ -85,7 +94,7 @@ const PromptList: React.FC<PromptListProps> = ({
                   </button>
                   <button
                     className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    onClick={() => onDelete(prompt.id)}
+                    onClick={() => onDelete(prompt.promptGroupId)}
                     title="删除提示词"
                   >
                     <TrashIcon size={16} />

@@ -5,7 +5,9 @@ import PromptEditor from './components/PromptEditor';
 import TagManager from './components/TagManager'; // 导入标签管理组件
 import Settings from './components/Settings'; // 导入设置组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt, updatePromptLastUsed } from './services/db';
+import PromptHistory from './components/PromptHistory';
+import PromptVersionView from './components/PromptVersionView';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, getPromptByVersionId, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, getPrompt } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -54,6 +56,10 @@ function App() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [promptToDeleteId, setPromptToDeleteId] = useState<string | null>(null);
 
+  // Version history state
+  const [historyPromptId, setHistoryPromptId] = useState<string | null>(null);
+  const [viewingVersion, setViewingVersion] = useState<Prompt | null>(null);
+
   // 初始化数据库并加载提示词
   useEffect(() => {
     const loadData = async () => {
@@ -98,7 +104,7 @@ function App() {
 
           try {
             // 1. 获取提示词内容
-            const prompt = await getPrompt(promptId);
+            const prompt = await getPromptByVersionId(promptId);
             if (!prompt) {
               console.error(`找不到ID为${promptId}的提示词`);
               return;
@@ -120,9 +126,6 @@ function App() {
             } else {
               console.log('自动插入功能已禁用，仅复制到剪贴板');
             }
-
-            // 4. 更新最后使用时间
-            await updatePromptLastUsed(promptId);
           } catch (err) {
             console.error('粘贴提示词内容时出错:', err);
           }
@@ -158,9 +161,9 @@ function App() {
     setError(null); // 清除旧错误
     try {
       if (editingPrompt) {
-        const updatedPrompt = await updatePrompt(editingPrompt.id, promptData);
+        const updatedPrompt = await updatePrompt(editingPrompt.promptGroupId, promptData);
         setPrompts(prevPrompts =>
-          prevPrompts.map(p => p.id === updatedPrompt.id ? updatedPrompt : p)
+          prevPrompts.map(p => p.promptGroupId === updatedPrompt.promptGroupId ? updatedPrompt : p)
         );
       } else {
         const newPrompt = await createPrompt(promptData);
@@ -175,8 +178,8 @@ function App() {
   };
 
   // 打开删除确认对话框
-  const handleDeletePrompt = async (id: string) => {
-    setPromptToDeleteId(id); // 设置要删除的 ID
+  const handleDeletePrompt = async (promptGroupId: string) => {
+    setPromptToDeleteId(promptGroupId); // 设置要删除的 ID
     setIsConfirmOpen(true); // 打开确认对话框
   };
 
@@ -186,7 +189,7 @@ function App() {
     setError(null);
     try {
       await deletePrompt(promptToDeleteId);
-      setPrompts(prevPrompts => prevPrompts.filter(p => p.id !== promptToDeleteId));
+      setPrompts(prevPrompts => prevPrompts.filter(p => p.promptGroupId !== promptToDeleteId));
     } catch (err) {
       console.error('删除提示词失败:', err);
       setError('删除提示词失败，请重试。');
@@ -202,12 +205,12 @@ function App() {
     setPromptToDeleteId(null); // 清空 ID
   };
 
-  const handleFavoriteToggle = async (id: string) => {
+  const handleFavoriteToggle = async (promptGroupId: string) => {
     setError(null);
     try {
-      const isFavorite = await toggleFavorite(id);
+      const isFavorite = await toggleFavorite(promptGroupId);
       setPrompts(prevPrompts =>
-        prevPrompts.map(p => p.id === id ? { ...p, isFavorite } : p)
+        prevPrompts.map(p => p.promptGroupId === promptGroupId ? { ...p, isFavorite } : p)
       );
     } catch (err) {
       console.error('切换收藏状态失败:', err);
@@ -297,6 +300,37 @@ function App() {
     return baseTitle;
   };
 
+  // Version History Handlers
+  const handleHistoryOpen = (promptGroupId: string) => {
+    setHistoryPromptId(promptGroupId);
+  };
+
+  const handleHistoryClose = () => {
+    setHistoryPromptId(null);
+  };
+
+  const handleViewVersion = async (versionId: string) => {
+    try {
+      const version = await getPromptByVersionId(versionId);
+      setViewingVersion(version);
+    } catch (error) {
+      console.error('Failed to fetch prompt version:', error);
+      setError('无法加载指定的版本。');
+    }
+  };
+
+  const handleViewVersionClose = () => {
+    setViewingVersion(null);
+  };
+
+  const handleReviseVersion = (prompt: Prompt) => {
+    // 1. Close both modals
+    handleViewVersionClose();
+    handleHistoryClose();
+    // 2. Open the editor with the historical version's data
+    handleEditorOpen(prompt);
+  };
+
   return (
     <>
       {/* 标题栏与内容之间的分割线 */}
@@ -322,6 +356,7 @@ function App() {
           onDelete={handleDeletePrompt}
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
+          onHistory={handleHistoryOpen}
         />
 
         {/* 错误消息 */}
@@ -389,6 +424,21 @@ function App() {
           onConfirm={confirmDeletion}
           onCancel={cancelDeletion}
         />
+
+        <PromptHistory
+          promptGroupId={historyPromptId || ''}
+          isOpen={!!historyPromptId}
+          onClose={handleHistoryClose}
+          onViewVersion={handleViewVersion}
+        />
+
+        {viewingVersion && (
+          <PromptVersionView
+            promptVersion={viewingVersion}
+            onClose={handleViewVersionClose}
+            onRevise={handleReviseVersion}
+          />
+        )}
       </div>
     </>
   );

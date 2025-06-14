@@ -4,10 +4,11 @@ import { Prompt } from '../services/db';
 
 type PromptGridProps = {
   prompts: Prompt[];
-  onFavoriteToggle: (id: string) => void;
+  onFavoriteToggle: (promptGroupId: string) => void;
   onCopy: (id: string) => void;
   onEdit: (prompt: Prompt) => void;
-  onDelete: (id: string) => void;
+  onDelete: (promptGroupId: string) => void;
+  onHistory: (promptGroupId: string) => void;
 };
 
 const PromptGrid: React.FC<PromptGridProps> = ({
@@ -15,7 +16,8 @@ const PromptGrid: React.FC<PromptGridProps> = ({
   onFavoriteToggle,
   onCopy,
   onEdit,
-  onDelete
+  onDelete,
+  onHistory
 }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
@@ -23,6 +25,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
         <PromptCard
           key={prompt.id}
           id={prompt.id}
+          promptGroupId={prompt.promptGroupId}
           title={prompt.title}
           content={prompt.content}
           tags={prompt.tags}
@@ -32,6 +35,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           onCopy={onCopy}
           onEdit={() => onEdit(prompt)}
           onDelete={onDelete}
+          onHistory={onHistory}
         />
       ))}
     </div>

@@ -8,11 +8,12 @@ type MainContentProps = {
   title: string;
   prompts: Prompt[];
   isLoading: boolean;
-  onFavoriteToggle: (id: string) => void;
+  onFavoriteToggle: (promptGroupId: string) => void;
   onEdit: (prompt: Prompt) => void;
-  onDelete: (id: string) => void;
+  onDelete: (promptGroupId: string) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
+  onHistory: (promptGroupId: string) => void;
 };
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -23,7 +24,8 @@ const MainContent: React.FC<MainContentProps> = ({
   onEdit,
   onDelete,
   searchTerm,
-  onSearchChange
+  onSearchChange,
+  onHistory
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -73,6 +75,7 @@ const MainContent: React.FC<MainContentProps> = ({
             onCopy={handleCopy}
             onEdit={onEdit}
             onDelete={onDelete}
+            onHistory={onHistory}
           />
         ) : (
           <PromptList
@@ -81,6 +84,7 @@ const MainContent: React.FC<MainContentProps> = ({
             onCopy={handleCopy}
             onEdit={onEdit}
             onDelete={onDelete}
+            onHistory={onHistory}
           />
         )}
       </div>

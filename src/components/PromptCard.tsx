@@ -1,24 +1,27 @@
 import React from 'react';
 // @ts-ignore
-import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon } from 'lucide-react';
+import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon } from 'lucide-react';
 import { Tag } from '../services/db';
 import { formatRelativeTime } from '../utils/time';
 
 type PromptCardProps = {
   id: string;
+  promptGroupId: string;
   title: string;
   content: string;
   tags: Tag[];
   isFavorite: boolean;
   dateModified: string;
-  onFavoriteToggle: (id: string) => void;
+  onFavoriteToggle: (promptGroupId: string) => void;
   onCopy: (id: string) => void;
   onEdit: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (promptGroupId: string) => void;
+  onHistory: (promptGroupId: string) => void;
 };
 
 const PromptCard: React.FC<PromptCardProps> = ({
   id,
+  promptGroupId,
   title,
   content,
   tags,
@@ -27,7 +30,8 @@ const PromptCard: React.FC<PromptCardProps> = ({
   onFavoriteToggle,
   onCopy,
   onEdit,
-  onDelete
+  onDelete,
+  onHistory
 }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-150 overflow-hidden flex flex-col">
@@ -36,7 +40,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
           <h3 className="text-base font-medium text-gray-800 line-clamp-1">{title}</h3>
           <button
             className={`p-1 rounded-full ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-300 hover:text-gray-400'}`}
-            onClick={() => onFavoriteToggle(id)}
+            onClick={() => onFavoriteToggle(promptGroupId)}
           >
             <StarIcon size={18} fill={isFavorite ? 'currentColor' : 'none'} />
           </button>
@@ -69,6 +73,13 @@ const PromptCard: React.FC<PromptCardProps> = ({
         <div className="flex space-x-1">
           <button
             className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
+            onClick={() => onHistory(promptGroupId)}
+            title="查看历史记录"
+          >
+            <HistoryIcon size={16} />
+          </button>
+          <button
+            className="p-1.5 text-gray-500 hover:text-primary-500 hover:bg-primary-50 rounded-md transition-colors"
             onClick={() => onCopy(id)}
             title="复制提示词"
           >
@@ -83,7 +94,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
           </button>
           <button
             className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-            onClick={() => onDelete(id)}
+            onClick={() => onDelete(promptGroupId)}
             title="删除提示词"
           >
             <TrashIcon size={16} />

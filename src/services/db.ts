@@ -4,6 +4,9 @@ import { v7 as uuidv7 } from 'uuid';
 // 定义类型
 export interface Prompt {
   id: string;
+  promptGroupId: string;
+  version: number;
+  isLatest: boolean;
   title: string;
   content: string;
   isFavorite: boolean;
@@ -97,7 +100,11 @@ async function ensureDbInitialized(): Promise<Database> {
 export async function getAllPrompts(): Promise<Prompt[]> {
   const currentDb = await ensureDbInitialized();
 
-  const result = await currentDb.select<any[]>(`SELECT * FROM prompts ORDER BY updated_at DESC`);
+  const result = await currentDb.select<any[]>(`
+    SELECT * FROM prompts 
+    WHERE is_latest = 1 
+    ORDER BY updated_at DESC
+  `);
   const prompts: Prompt[] = [];
 
   for (const row of result) {
@@ -110,6 +117,9 @@ export async function getAllPrompts(): Promise<Prompt[]> {
 
     prompts.push({
       id: row.id,
+      promptGroupId: row.prompt_group_id,
+      version: row.version,
+      isLatest: row.is_latest === 1,
       title: row.title,
       content: row.content,
       isFavorite: row.is_favorite === 1,
@@ -122,10 +132,13 @@ export async function getAllPrompts(): Promise<Prompt[]> {
   return prompts;
 }
 
-// 获取单个提示词
-export async function getPrompt(id: string): Promise<Prompt | null> {
+// 获取单个提示词 (最新版本)
+export async function getPrompt(promptGroupId: string): Promise<Prompt | null> {
   const currentDb = await ensureDbInitialized();
-  const result = await currentDb.select<any[]>(`SELECT * FROM prompts WHERE id = $1`, [id]);
+  const result = await currentDb.select<any[]>(`
+    SELECT * FROM prompts 
+    WHERE prompt_group_id = $1 AND is_latest = 1
+  `, [promptGroupId]);
 
   if (result.length === 0) return null;
 
@@ -135,10 +148,13 @@ export async function getPrompt(id: string): Promise<Prompt | null> {
     FROM tags t
     JOIN prompt_tags pt ON t.id = pt.tag_id
     WHERE pt.prompt_id = $1
-  `, [id]);
+  `, [row.id]);
 
   return {
     id: row.id,
+    promptGroupId: row.prompt_group_id,
+    version: row.version,
+    isLatest: row.is_latest === 1,
     title: row.title,
     content: row.content,
     isFavorite: row.is_favorite === 1,
@@ -236,18 +252,20 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   const currentDb = await ensureDbInitialized();
   const now = new Date().toISOString();
   const promptId = uuidv7();
+  const promptGroupId = uuidv7(); // 新的 group ID
 
   try {
-    // 1. 确保标签存在（包含内部处理创建）
+    // 1. 确保标签存在
     const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
 
-    // 2. 插入 prompts 表 (无事务)
+    // 2. 插入 prompts 表
     await currentDb.execute(
-      `INSERT INTO prompts (id, title, content, is_favorite, created_at, updated_at) VALUES ($1, $2, $3, 0, $4, $5)`,
-      [promptId, promptData.title, promptData.content, now, now]
+      `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, is_favorite, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [promptId, promptGroupId, 1, 1, promptData.title, promptData.content, 0, now, now]
     );
 
-    // 3. 插入标签关联 (无事务)
+    // 3. 插入标签关联
     for (const tag of ensuredTags) {
       await currentDb.execute(
         `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
@@ -258,6 +276,9 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
     // 4. 构建并返回结果
     return {
       id: promptId,
+      promptGroupId: promptGroupId,
+      version: 1,
+      isLatest: true,
       title: promptData.title,
       content: promptData.content,
       isFavorite: false,
@@ -275,100 +296,182 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
   }
 }
 
-// 更新提示词
-export async function updatePrompt(id: string, promptData: PromptInput): Promise<Prompt> {
+// 更新提示词（创建新版本）
+export async function updatePrompt(promptGroupId: string, promptData: PromptInput): Promise<Prompt> {
   const currentDb = await ensureDbInitialized();
   const now = new Date().toISOString();
 
-  try {
-    // 1. 确保标签存在（包含内部处理创建）
-    const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
+  // 1. 查找当前的最新版本
+  const latestVersionResult = await currentDb.select<any[]>(
+    `SELECT * FROM prompts WHERE prompt_group_id = $1 AND is_latest = 1`,
+    [promptGroupId]
+  );
 
-    // 2. 获取原始提示词数据 (需要先获取才能返回完整对象)
-    const originalPromptResult = await currentDb.select<any[]>(
-      `SELECT is_favorite, created_at FROM prompts WHERE id = $1`, [id]
-    );
-    if (originalPromptResult.length === 0) {
-      throw new Error(`更新时未找到提示词 ${id}`);
-    }
-    const { is_favorite, created_at } = originalPromptResult[0];
+  if (latestVersionResult.length === 0) {
+    throw new Error(`更新时未找到提示词组 ${promptGroupId}`);
+  }
+  const latestVersion = latestVersionResult[0];
 
-    // 3. 更新 prompts 表 (无事务)
+  // 2. 将旧版本标记为非最新
+  await currentDb.execute(
+    `UPDATE prompts SET is_latest = 0 WHERE id = $1`,
+    [latestVersion.id]
+  );
+
+  // 3. 创建新版本
+  const newPromptId = uuidv7();
+  const newVersionNumber = latestVersion.version + 1;
+  await currentDb.execute(
+    `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, is_favorite, created_at, updated_at) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      newPromptId,
+      promptGroupId,
+      newVersionNumber,
+      1, // is_latest
+      promptData.title,
+      promptData.content,
+      latestVersion.is_favorite,
+      latestVersion.created_at, // 保持原始创建时间
+      now,
+    ]
+  );
+
+  // 4. 确保标签存在
+  const ensuredTags = await ensureTagsExist(promptData.tags, currentDb);
+
+  // 5. 为新版本关联标签
+  for (const tag of ensuredTags) {
     await currentDb.execute(
-      `UPDATE prompts SET title = $1, content = $2, updated_at = $3 WHERE id = $4`,
-      [promptData.title, promptData.content, now, id]
+      `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
+      [newPromptId, tag.id]
     );
+  }
+  
+  // 6. 构建并返回新版本的结果
+  return {
+    id: newPromptId,
+    promptGroupId,
+    version: newVersionNumber,
+    isLatest: true,
+    title: promptData.title,
+    content: promptData.content,
+    isFavorite: latestVersion.is_favorite === 1,
+    dateCreated: latestVersion.created_at,
+    dateModified: now,
+    tags: ensuredTags
+  };
+}
 
-    // 4. 删除旧的标签关联 (无事务)
-    await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
+// 新增：获取单个提示词的指定版本
+export async function getPromptByVersionId(id: string): Promise<Prompt | null> {
+  const currentDb = await ensureDbInitialized();
+  const result = await currentDb.select<any[]>(`SELECT * FROM prompts WHERE id = $1`, [id]);
 
-    // 5. 插入新的标签关联 (无事务)
-    for (const tag of ensuredTags) {
+  if (result.length === 0) return null;
+
+  const row = result[0];
+  const tagsResult = await currentDb.select<any[]>(`
+    SELECT t.* 
+    FROM tags t
+    JOIN prompt_tags pt ON t.id = pt.tag_id
+    WHERE pt.prompt_id = $1
+  `, [id]);
+
+  return {
+    id: row.id,
+    promptGroupId: row.prompt_group_id,
+    version: row.version,
+    isLatest: row.is_latest === 1,
+    title: row.title,
+    content: row.content,
+    isFavorite: row.is_favorite === 1,
+    dateCreated: row.created_at,
+    dateModified: row.updated_at,
+    tags: tagsResult.map(tag => ({ id: tag.id, name: tag.name, color: tag.color }))
+  };
+}
+
+// 新增：获取一个提示词的所有版本历史
+export async function getPromptHistory(promptGroupId: string): Promise<Prompt[]> {
+  const currentDb = await ensureDbInitialized();
+  const result = await currentDb.select<any[]>(`
+    SELECT * FROM prompts 
+    WHERE prompt_group_id = $1 
+    ORDER BY version DESC
+  `, [promptGroupId]);
+
+  const history: Prompt[] = [];
+  for (const row of result) {
+    history.push({
+      id: row.id,
+      promptGroupId: row.prompt_group_id,
+      version: row.version,
+      isLatest: row.is_latest === 1,
+      title: row.title,
+      content: row.content,
+      isFavorite: row.is_favorite === 1,
+      dateCreated: row.created_at,
+      dateModified: row.updated_at,
+      tags: [] // 历史记录中暂不加载标签，以提高性能
+    });
+  }
+  return history;
+}
+
+// 删除提示词 (删除整个版本组)
+export async function deletePrompt(promptGroupId: string): Promise<boolean> {
+  const currentDb = await ensureDbInitialized();
+
+  try {
+    // 1. 查找该组下的所有版本ID
+    const versions = await currentDb.select<any[]>(
+      `SELECT id FROM prompts WHERE prompt_group_id = $1`,
+      [promptGroupId]
+    );
+    const versionIds = versions.map(v => v.id);
+
+    // 2. 删除所有版本的标签关联
+    if (versionIds.length > 0) {
+      const placeholders = versionIds.map(() => '?').join(',');
       await currentDb.execute(
-        `INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)`,
-        [id, tag.id]
+        `DELETE FROM prompt_tags WHERE prompt_id IN (${placeholders})`,
+        versionIds
       );
     }
 
-    // 6. 构建并返回结果
-    return {
-      id,
-      title: promptData.title,
-      content: promptData.content,
-      isFavorite: is_favorite === 1,
-      dateCreated: created_at,
-      dateModified: now,
-      tags: ensuredTags
-    };
-
-  } catch (error: any) {
-    console.error("Error during prompt update process (original error):", error);
-    if (error && error.stack) {
-      console.error("Stack trace:", error.stack);
-    }
-    throw error; // 重新抛出错误
-  }
-}
-
-// 删除提示词
-export async function deletePrompt(id: string): Promise<boolean> {
-  const currentDb = await ensureDbInitialized();
-
-  try {
-    await currentDb.execute(`DELETE FROM prompt_tags WHERE prompt_id = $1`, [id]);
-    await currentDb.execute(`DELETE FROM prompts WHERE id = $1`, [id]);
+    // 3. 删除所有版本
+    await currentDb.execute(`DELETE FROM prompts WHERE prompt_group_id = $1`, [promptGroupId]);
     return true;
-  } catch (error: any) { // Type error as any to access stack
-    console.error("Error deleting prompt:", error);
+  } catch (error: any) { 
+    console.error("Error deleting prompt group:", error);
     if (error && error.stack) {
       console.error("Stack trace:", error.stack);
     }
-    throw error; // 仍然抛出错误，以便上层处理 UI 反馈
+    throw error;
   }
 }
 
-// 切换收藏状态
-export async function toggleFavorite(id: string): Promise<boolean> {
+// 切换收藏状态 (应用于整个版本组)
+export async function toggleFavorite(promptGroupId: string): Promise<boolean> {
   const currentDb = await ensureDbInitialized();
 
   try {
-    // 不需要事务，查询和更新是独立操作
     const result = await currentDb.select<any[]>(
-      `SELECT is_favorite FROM prompts WHERE id = $1`, [id]
+      `SELECT is_favorite FROM prompts WHERE prompt_group_id = $1 AND is_latest = 1`, [promptGroupId]
     );
     if (result.length === 0) {
-      console.warn(`ToggleFavorite: Prompt with id ${id} not found.`);
-      return false; // 或者抛出错误，取决于期望的行为
+      console.warn(`ToggleFavorite: Prompt group with id ${promptGroupId} not found.`);
+      return false;
     }
 
     const newValue = result[0].is_favorite === 1 ? 0 : 1;
     await currentDb.execute(
-      `UPDATE prompts SET is_favorite = $1 WHERE id = $2`, [newValue, id]
+      `UPDATE prompts SET is_favorite = $1 WHERE prompt_group_id = $2`, [newValue, promptGroupId]
     );
 
     return newValue === 1;
   } catch (error: any) {
-    // 不需要 ROLLBACK，因为没有显式 BEGIN
     console.error("切换收藏状态失败:", error);
     if (error && error.stack) {
       console.error("Stack trace:", error.stack);
@@ -448,6 +551,9 @@ export async function getRecentlyUsedPrompts(limit: number = 5): Promise<Prompt[
 
       prompts.push({
         id: row.id,
+        promptGroupId: row.prompt_group_id,
+        version: row.version,
+        isLatest: row.is_latest === 1,
         title: row.title,
         content: row.content,
         isFavorite: row.is_favorite === 1,
