@@ -28,6 +28,7 @@ const PromptGrid: React.FC<PromptGridProps> = ({
           promptGroupId={prompt.promptGroupId}
           title={prompt.title}
           content={prompt.content}
+          sourceUrl={prompt.sourceUrl}
           tags={prompt.tags}
           isFavorite={prompt.isFavorite}
           dateModified={prompt.dateModified}

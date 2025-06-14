@@ -1,6 +1,6 @@
 import React from 'react';
 // @ts-ignore
-import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon } from 'lucide-react';
+import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon, ExternalLinkIcon } from 'lucide-react';
 import { Tag } from '../services/db';
 import { formatRelativeTime } from '../utils/time';
 
@@ -9,6 +9,7 @@ type PromptCardProps = {
   promptGroupId: string;
   title: string;
   content: string;
+  sourceUrl?: string;
   tags: Tag[];
   isFavorite: boolean;
   dateModified: string;
@@ -24,6 +25,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
   promptGroupId,
   title,
   content,
+  sourceUrl,
   tags,
   isFavorite,
   dateModified,
@@ -47,6 +49,20 @@ const PromptCard: React.FC<PromptCardProps> = ({
         </div>
 
         <p className="text-sm text-gray-600 mb-3 line-clamp-3">{content}</p>
+
+        {sourceUrl && (
+          <div className="mb-3">
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <ExternalLinkIcon size={12} className="mr-1" />
+              来源链接
+            </a>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1 mb-3">
           {tags.map(tag => (

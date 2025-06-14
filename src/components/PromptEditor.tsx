@@ -9,6 +9,7 @@ type PromptEditorProps = {
     id?: string;
     title: string;
     content: string;
+    sourceUrl?: string;
     tags: Tag[];
   };
   onClose: () => void;
@@ -17,7 +18,7 @@ type PromptEditorProps = {
 
 const PromptEditor: React.FC<PromptEditorProps> = ({
   isOpen,
-  initialData = { title: '', content: '', tags: [] },
+  initialData = { title: '', content: '', sourceUrl: '', tags: [] },
   onClose,
   onSave
 }) => {
@@ -89,6 +90,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
     onSave({
       title: promptData.title,
       content: promptData.content,
+      sourceUrl: promptData.sourceUrl,
       tags: promptData.tags
     });
   };
@@ -139,6 +141,21 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
               className="w-full px-4 py-3 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors min-h-[200px] resize-none"
               placeholder="在这里输入提示词内容..."
               required
+            />
+          </div>
+
+          <div className="mb-5">
+            <label htmlFor="sourceUrl" className="block text-sm font-medium text-gray-700 mb-1">
+              来源链接 (可选)
+            </label>
+            <input
+              type="url"
+              id="sourceUrl"
+              name="sourceUrl"
+              value={promptData.sourceUrl || ''}
+              onChange={handleChange}
+              className="w-full px-4 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors"
+              placeholder="https://example.com"
             />
           </div>
 

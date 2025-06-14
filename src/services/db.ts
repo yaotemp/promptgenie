@@ -9,6 +9,7 @@ export interface Prompt {
   isLatest: boolean;
   title: string;
   content: string;
+  sourceUrl?: string;
   isFavorite: boolean;
   dateCreated: string;
   dateModified: string;
@@ -26,6 +27,7 @@ export interface Tag {
 export interface PromptInput {
   title: string;
   content: string;
+  sourceUrl?: string;
   tags: Tag[];
 }
 
@@ -122,6 +124,7 @@ export async function getAllPrompts(): Promise<Prompt[]> {
       isLatest: row.is_latest === 1,
       title: row.title,
       content: row.content,
+      sourceUrl: row.source_url,
       isFavorite: row.is_favorite === 1,
       dateCreated: row.created_at,
       dateModified: row.updated_at,
@@ -157,6 +160,7 @@ export async function getPrompt(promptGroupId: string): Promise<Prompt | null> {
     isLatest: row.is_latest === 1,
     title: row.title,
     content: row.content,
+    sourceUrl: row.source_url,
     isFavorite: row.is_favorite === 1,
     dateCreated: row.created_at,
     dateModified: row.updated_at,
@@ -260,9 +264,9 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
 
     // 2. 插入 prompts 表
     await currentDb.execute(
-      `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, is_favorite, created_at, updated_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [promptId, promptGroupId, 1, 1, promptData.title, promptData.content, 0, now, now]
+      `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, source_url, is_favorite, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [promptId, promptGroupId, 1, 1, promptData.title, promptData.content, promptData.sourceUrl, 0, now, now]
     );
 
     // 3. 插入标签关联
@@ -281,6 +285,7 @@ export async function createPrompt(promptData: PromptInput): Promise<Prompt> {
       isLatest: true,
       title: promptData.title,
       content: promptData.content,
+      sourceUrl: promptData.sourceUrl,
       isFavorite: false,
       dateCreated: now,
       dateModified: now,
@@ -322,8 +327,8 @@ export async function updatePrompt(promptGroupId: string, promptData: PromptInpu
   const newPromptId = uuidv7();
   const newVersionNumber = latestVersion.version + 1;
   await currentDb.execute(
-    `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, is_favorite, created_at, updated_at) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    `INSERT INTO prompts (id, prompt_group_id, version, is_latest, title, content, source_url, is_favorite, created_at, updated_at) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       newPromptId,
       promptGroupId,
@@ -331,6 +336,7 @@ export async function updatePrompt(promptGroupId: string, promptData: PromptInpu
       1, // is_latest
       promptData.title,
       promptData.content,
+      promptData.sourceUrl,
       latestVersion.is_favorite,
       latestVersion.created_at, // 保持原始创建时间
       now,
@@ -356,6 +362,7 @@ export async function updatePrompt(promptGroupId: string, promptData: PromptInpu
     isLatest: true,
     title: promptData.title,
     content: promptData.content,
+    sourceUrl: promptData.sourceUrl,
     isFavorite: latestVersion.is_favorite === 1,
     dateCreated: latestVersion.created_at,
     dateModified: now,
@@ -385,6 +392,7 @@ export async function getPromptByVersionId(id: string): Promise<Prompt | null> {
     isLatest: row.is_latest === 1,
     title: row.title,
     content: row.content,
+    sourceUrl: row.source_url,
     isFavorite: row.is_favorite === 1,
     dateCreated: row.created_at,
     dateModified: row.updated_at,
@@ -410,6 +418,7 @@ export async function getPromptHistory(promptGroupId: string): Promise<Prompt[]>
       isLatest: row.is_latest === 1,
       title: row.title,
       content: row.content,
+      sourceUrl: row.source_url,
       isFavorite: row.is_favorite === 1,
       dateCreated: row.created_at,
       dateModified: row.updated_at,
@@ -556,6 +565,7 @@ export async function getRecentlyUsedPrompts(limit: number = 5): Promise<Prompt[
         isLatest: row.is_latest === 1,
         title: row.title,
         content: row.content,
+        sourceUrl: row.source_url,
         isFavorite: row.is_favorite === 1,
         dateCreated: row.created_at,
         dateModified: row.updated_at,
@@ -703,6 +713,7 @@ export async function exportAllData(): Promise<any> {
         id: v.id,
         version: v.version,
         content: v.content,
+        sourceUrl: v.source_url,
         isLatest: v.is_latest === 1,
         dateCreated: v.created_at
       })),
@@ -847,9 +858,9 @@ export async function importData(data: any, options: any): Promise<any> {
             
             await currentDb.execute(`
               INSERT INTO prompts (
-                id, prompt_group_id, version, is_latest, title, content, 
+                id, prompt_group_id, version, is_latest, title, content, source_url,
                 is_favorite, created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             `, [
               versionId,
               targetPromptGroupId,
@@ -857,6 +868,7 @@ export async function importData(data: any, options: any): Promise<any> {
               version.isLatest ? 1 : 0,
               prompt.title,
               version.content,
+              version.sourceUrl,
               prompt.isFavorite ? 1 : 0,
               version.dateCreated,
               prompt.dateModified

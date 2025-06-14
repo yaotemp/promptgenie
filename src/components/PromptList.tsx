@@ -1,5 +1,5 @@
 import React from 'react';
-import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon } from 'lucide-react';
+import { StarIcon, CopyIcon, PencilIcon, TagIcon, TrashIcon, HistoryIcon, ExternalLinkIcon } from 'lucide-react';
 import { Prompt } from '../services/db';
 import { formatRelativeTime } from '../utils/time';
 
@@ -26,6 +26,7 @@ const PromptList: React.FC<PromptListProps> = ({
         <thead className="bg-gray-50">
           <tr className="text-left">
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">提示词</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">来源</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">标签</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">修改日期</th>
             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">收藏</th>
@@ -40,6 +41,21 @@ const PromptList: React.FC<PromptListProps> = ({
                   <div className="text-sm font-medium text-gray-800">{prompt.title}</div>
                   <div className="text-sm text-gray-500 line-clamp-1">{prompt.content}</div>
                 </div>
+              </td>
+              <td className="px-6 py-4">
+                {prompt.sourceUrl ? (
+                  <a
+                    href={prompt.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    <ExternalLinkIcon size={12} className="mr-1" />
+                    来源
+                  </a>
+                ) : (
+                  <span className="text-xs text-gray-400">-</span>
+                )}
               </td>
               <td className="px-6 py-4">
                 <div className="flex flex-wrap gap-1">

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS prompts (
   is_latest INTEGER NOT NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
+  source_url TEXT,
   is_favorite INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
