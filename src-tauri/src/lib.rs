@@ -27,19 +27,19 @@ struct PromptMenuItem {
 }
 
 // 初始化数据库
-fn init_db<R: Runtime>(app: &AppHandle<R>) {
-    // 确保数据目录存在
-    let app_dir = app.path().app_data_dir().expect("无法获取app数据目录");
-    std::fs::create_dir_all(&app_dir).expect("无法创建数据目录");
+// fn init_db<R: Runtime>(app: &AppHandle<R>) {
+//     // 确保数据目录存在
+//     let app_dir = app.path().app_data_dir().expect("无法获取app数据目录");
+//     std::fs::create_dir_all(&app_dir).expect("无法创建数据目录");
 
-    // 打印数据库路径
-    let db_path = app_dir.join("promptgenie.db");
-    println!("数据库路径: {}", db_path.to_string_lossy());
-}
+//     // 打印数据库路径
+//     let db_path = app_dir.join("promptgenie.db");
+//     println!("数据库路径: {}", db_path.to_string_lossy());
+// }
 
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You\'ve been greeted from Rust!", name)
+    format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
 // 处理托盘图标事件的独立函数 - Simplified
@@ -237,6 +237,19 @@ pub fn run() {
     }];
 
     let builder = tauri::Builder::default()
+        .setup(|app| {
+            // Ensure the app data directory exists
+            let app_dir = app.path().app_data_dir().expect("无法获取app数据目录");
+            if !app_dir.exists() {
+                std::fs::create_dir_all(&app_dir).expect("无法创建数据目录");
+            }
+            
+            // 打印数据库路径以供调试
+            let db_path = app_dir.join("promptgenie.db");
+            println!("数据库路径: {}", db_path.to_string_lossy());
+            
+            Ok(())
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             println!("单实例回调被触发！尝试聚焦现有窗口...");
             
@@ -271,7 +284,7 @@ pub fn run() {
         )
         .setup(|app| {
             // 初始化数据库目录（如果需要）
-            init_db(&app.handle());
+            // init_db(&app.handle());
 
             // --- 托盘初始设置 ---
             let app_handle = app.handle().clone();

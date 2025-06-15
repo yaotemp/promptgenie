@@ -28,6 +28,7 @@ export interface ExportPromptVersion {
   version: number;
   content: string;
   sourceUrl?: string;
+  note?: string;
   isLatest: boolean;
   dateCreated: string;
 }

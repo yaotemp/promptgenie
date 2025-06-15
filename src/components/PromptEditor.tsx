@@ -10,6 +10,7 @@ type PromptEditorProps = {
     title: string;
     content: string;
     sourceUrl?: string;
+    note?: string;
     tags: Tag[];
   };
   onClose: () => void;
@@ -18,7 +19,7 @@ type PromptEditorProps = {
 
 const PromptEditor: React.FC<PromptEditorProps> = ({
   isOpen,
-  initialData = { title: '', content: '', sourceUrl: '', tags: [] },
+  initialData = { title: '', content: '', sourceUrl: '', note: '', tags: [] },
   onClose,
   onSave
 }) => {
@@ -91,6 +92,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
       title: promptData.title,
       content: promptData.content,
       sourceUrl: promptData.sourceUrl,
+      note: promptData.note,
       tags: promptData.tags
     });
   };
@@ -156,6 +158,20 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
               onChange={handleChange}
               className="w-full px-4 py-2 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors"
               placeholder="https://example.com"
+            />
+          </div>
+
+          <div className="mb-5">
+            <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">
+              备注 (可选)
+            </label>
+            <textarea
+              id="note"
+              name="note"
+              value={promptData.note || ''}
+              onChange={handleChange}
+              className="w-full px-4 py-3 text-gray-800 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors min-h-[80px] resize-none"
+              placeholder="添加关于这个提示词的备注或注释..."
             />
           </div>
 

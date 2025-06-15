@@ -10,6 +10,7 @@ type PromptCardProps = {
   title: string;
   content: string;
   sourceUrl?: string;
+  note?: string;
   tags: Tag[];
   isFavorite: boolean;
   dateModified: string;
@@ -26,6 +27,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
   title,
   content,
   sourceUrl,
+  note,
   tags,
   isFavorite,
   dateModified,
@@ -61,6 +63,15 @@ const PromptCard: React.FC<PromptCardProps> = ({
               <ExternalLinkIcon size={12} className="mr-1" />
               来源链接
             </a>
+          </div>
+        )}
+
+        {note && (
+          <div className="mb-3 p-2 bg-gray-50 rounded-md">
+            <p className="text-xs text-gray-600 line-clamp-2">
+              <span className="font-medium">备注：</span>
+              {note}
+            </p>
           </div>
         )}
 
