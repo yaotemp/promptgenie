@@ -7,7 +7,8 @@ import Settings from './components/Settings'; // 导入设置组件
 import ConfirmDialog from './components/ConfirmDialog'; // 导入自定义对话框
 import PromptHistory from './components/PromptHistory';
 import PromptVersionView from './components/PromptVersionView';
-import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, getPromptByVersionId, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard } from './services/db';
+import ExportProgressModal from './components/ExportProgressModal';
+import { initDatabase, getAllPrompts, createPrompt, updatePrompt, toggleFavorite, deletePrompt, getPromptByVersionId, Prompt, PromptInput, updateTrayMenu, copyPromptToClipboard, exportDatabaseBeforeExit } from './services/db';
 
 function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -18,6 +19,10 @@ function App() {
   const [isTagManagerOpen, setIsTagManagerOpen] = useState(false); // 添加标签管理状态
   const [isSettingsOpen, setIsSettingsOpen] = useState(false); // 添加设置状态
   const [searchTerm, setSearchTerm] = useState(''); // 添加搜索词状态
+
+  // 新增：导出状态管理
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // 当前过滤模式
   const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
@@ -59,6 +64,59 @@ function App() {
   // Version history state
   const [historyPromptId, setHistoryPromptId] = useState<string | null>(null);
   const [viewingVersion, setViewingVersion] = useState<Prompt | null>(null);
+
+  // 新增：处理退出前导出
+  const handleBeforeQuit = async () => {
+    if (isExporting) {
+      console.log('导出已在进行中，跳过...');
+      return;
+    }
+
+    setIsExporting(true);
+    setExportMessage('正在导出数据库...');
+    
+    try {
+      const success = await exportDatabaseBeforeExit();
+      if (success) {
+        setExportMessage('数据库导出完成');
+        console.log('退出前导出成功');
+      } else {
+        setExportMessage('数据库导出失败');
+        console.error('退出前导出失败');
+      }
+    } catch (error) {
+      setExportMessage('数据库导出出错');
+      console.error('退出前导出出错:', error);
+    } finally {
+      setTimeout(() => {
+        setIsExporting(false);
+        setExportMessage(null);
+      }, 1000);
+    }
+  };
+
+  // 新增：处理窗口关闭前事件
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // 检查是否启用自动导出
+      const autoExport = localStorage.getItem('autoExportOnExit') !== 'false'; // 默认为 true
+      
+      if (autoExport && !isExporting) {
+        // 阻止立即关闭，先执行导出
+        event.preventDefault();
+        event.returnValue = ''; // Chrome requires returnValue to be set
+        
+        // 异步执行导出
+        handleBeforeQuit();
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isExporting]);
 
   // 初始化数据库并加载提示词
   useEffect(() => {
@@ -131,10 +189,17 @@ function App() {
           }
         });
 
+        // 监听退出前导出事件
+        const unlistenBeforeQuit = await listen('before-quit', async () => {
+          console.log('收到退出前导出事件');
+          await handleBeforeQuit();
+        });
+
         // 组件卸载时移除事件监听
         return () => {
           unlistenTrayPrompt();
           unlistenPastePrompt();
+          unlistenBeforeQuit();
         };
       } catch (err) {
         console.error('App: 加载数据失败:', err);
@@ -456,6 +521,17 @@ function App() {
             onRevise={handleReviseVersion}
           />
         )}
+
+        {/* 导出进度模态框 */}
+        <ExportProgressModal
+          isOpen={isExporting || exportMessage !== null}
+          onClose={() => {
+            setIsExporting(false);
+            setExportMessage(null);
+          }}
+          isExporting={isExporting}
+          message={exportMessage}
+        />
       </div>
     </>
   );

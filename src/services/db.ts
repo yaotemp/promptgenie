@@ -942,4 +942,67 @@ export async function importData(data: any, options: any): Promise<any> {
       errors: [...errors, error instanceof Error ? error.message : String(error)]
     };
   }
+}
+
+// 新增：退出前导出数据库
+export async function exportDatabaseBeforeExit(): Promise<boolean> {
+  try {
+    console.log('开始退出前数据库导出...');
+    
+    // 获取所有数据
+    const exportData = await exportAllData();
+    
+    // 获取默认导出路径
+    const { invoke } = await import('@tauri-apps/api/core');
+    const exportPath = await invoke('get_default_export_path') as string;
+    
+    // 将数据转换为JSON字符串
+    const jsonData = JSON.stringify(exportData, null, 2);
+    
+    // 调用Rust命令保存文件
+    const savedPath = await invoke('export_database_to_file', {
+      filePath: exportPath,
+      exportData: jsonData
+    }) as string;
+    
+    console.log('数据库导出完成:', savedPath);
+    return true;
+  } catch (error) {
+    console.error('退出前导出失败:', error);
+    return false;
+  }
+}
+
+// 新增：手动导出到指定路径
+export async function exportDatabaseToFile(filePath?: string): Promise<string | null> {
+  try {
+    console.log('开始手动数据库导出...');
+    
+    // 获取所有数据
+    const exportData = await exportAllData();
+    
+    // 导入invoke函数
+    const { invoke } = await import('@tauri-apps/api/core');
+    
+    // 如果没有指定路径，使用默认路径
+    let exportPath = filePath;
+    if (!exportPath) {
+      exportPath = await invoke('get_default_export_path') as string;
+    }
+    
+    // 将数据转换为JSON字符串
+    const jsonData = JSON.stringify(exportData, null, 2);
+    
+    // 调用Rust命令保存文件
+    const savedPath = await invoke('export_database_to_file', {
+      filePath: exportPath,
+      exportData: jsonData
+    }) as string;
+    
+    console.log('手动数据库导出完成:', savedPath);
+    return savedPath;
+  } catch (error) {
+    console.error('手动导出失败:', error);
+    return null;
+  }
 } 

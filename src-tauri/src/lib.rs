@@ -8,6 +8,7 @@ use tauri_plugin_clipboard_manager;
 use tauri_plugin_dialog;
 use tauri_plugin_fs;
 use tauri_plugin_sql::{Migration, MigrationKind};
+use std::fs;
 
 // 新增：模拟粘贴操作
 #[cfg(target_os = "macos")]
@@ -226,6 +227,67 @@ async fn open_accessibility_settings() -> Result<(), String> {
     Ok(())
 }
 
+// 新增：导出数据库到文件的命令
+#[tauri::command]
+async fn export_database_to_file<R: Runtime>(
+    _app_handle: AppHandle<R>,
+    file_path: String,
+    export_data: String,
+) -> Result<String, String> {
+    match fs::write(&file_path, export_data) {
+        Ok(_) => {
+            println!("数据库导出成功: {}", file_path);
+            Ok(file_path)
+        }
+        Err(e) => {
+            eprintln!("数据库导出失败: {}", e);
+            Err(format!("导出失败: {}", e))
+        }
+    }
+}
+
+// 新增：获取默认导出路径
+#[tauri::command]
+async fn get_default_export_path<R: Runtime>(app_handle: AppHandle<R>) -> Result<String, String> {
+    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let timestamp = chrono::Local::now().format("%Y-%m-%d-%H-%M-%S");
+    let file_name = format!("promptgenie-export-{}.json", timestamp);
+    let export_path = app_dir.join(file_name);
+    
+    // 确保目录存在
+    if let Some(parent) = export_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(export_path.to_string_lossy().to_string())
+}
+
+// 新增：安全退出命令（先导出再退出）
+#[tauri::command]
+async fn safe_quit<R: Runtime>(app_handle: AppHandle<R>) -> Result<(), String> {
+    // 发送事件到前端，触发导出过程
+    if let Some(window) = app_handle.get_webview_window("main") {
+        match window.emit("before-quit", ()) {
+            Ok(_) => {
+                println!("已发送退出前导出事件");
+                // 给前端一些时间处理导出，然后退出
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
+            Err(e) => {
+                eprintln!("发送退出前导出事件失败: {}", e);
+            }
+        }
+    }
+    
+    // 延迟退出以确保导出完成
+    tokio::spawn(async {
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        std::process::exit(0);
+    });
+    
+    Ok(())
+}
+
 // 定义插件入口函数
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -314,7 +376,14 @@ pub fn run() {
                     let id = event.id().0.as_str();
                     match id {
                         "quit" => {
-                            std::process::exit(0);
+                            // 修改为安全退出
+                            let app_handle_clone = app_handle_for_event.clone();
+                            tauri::async_runtime::spawn(async move {
+                                if let Err(e) = safe_quit(app_handle_clone).await {
+                                    eprintln!("安全退出失败: {}", e);
+                                    std::process::exit(1);
+                                }
+                            });
                         }
                         "show-window" => {
                             // 显示主窗口
@@ -361,7 +430,10 @@ pub fn run() {
             update_tray_menu,
             simulate_paste,
             check_accessibility_permission,
-            open_accessibility_settings
+            open_accessibility_settings,
+            export_database_to_file,
+            get_default_export_path,
+            safe_quit
         ]);
 
     // 构建应用实例

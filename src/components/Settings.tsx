@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { XIcon } from 'lucide-react';
+import { XIcon, Download, FileCheck } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { exportDatabaseToFile } from '../services/db';
 
 // 定义组件Props
 interface SettingsProps {
@@ -11,6 +12,10 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
   const [trayAutoInsert, setTrayAutoInsert] = useState<boolean>(true);
   const [accessibilityStatus, setAccessibilityStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  // 新增：导出设置状态
+  const [autoExportOnExit, setAutoExportOnExit] = useState<boolean>(true);
+  const [isManualExporting, setIsManualExporting] = useState<boolean>(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // 加载设置
   useEffect(() => {
@@ -19,6 +24,10 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
         // 从 localStorage 加载设置
         const savedSetting = localStorage.getItem('trayAutoInsert');
         setTrayAutoInsert(savedSetting !== 'false'); // 默认为 true
+        
+        // 加载导出设置
+        const savedExportSetting = localStorage.getItem('autoExportOnExit');
+        setAutoExportOnExit(savedExportSetting !== 'false'); // 默认为 true
 
         // 检查系统权限状态
         try {
@@ -42,6 +51,7 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
   const saveSettings = async () => {
     try {
       localStorage.setItem('trayAutoInsert', trayAutoInsert.toString());
+      localStorage.setItem('autoExportOnExit', autoExportOnExit.toString());
       // 如果启用了功能但没有权限，提示用户
       if (trayAutoInsert && accessibilityStatus === 'denied') {
         openAccessibilitySettings();
@@ -60,6 +70,30 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
       console.error('打开系统设置失败:', err);
       // 回退方案：显示说明
       alert('请打开系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能，并为PromptGenie启用权限');
+    }
+  };
+
+  // 手动导出数据库
+  const handleManualExport = async () => {
+    if (isManualExporting) return;
+    
+    setIsManualExporting(true);
+    setExportMessage('正在导出数据库...');
+    
+    try {
+      const exportedPath = await exportDatabaseToFile();
+      if (exportedPath) {
+        setExportMessage(`导出成功！文件保存至：${exportedPath}`);
+      } else {
+        setExportMessage('导出失败，请重试');
+      }
+    } catch (error) {
+      console.error('手动导出失败:', error);
+      setExportMessage('导出出错，请重试');
+    } finally {
+      setIsManualExporting(false);
+      // 3秒后清除消息
+      setTimeout(() => setExportMessage(null), 3000);
     }
   };
 
@@ -129,6 +163,55 @@ const Settings: React.FC<SettingsProps> = ({ isOpen, onClose }) => {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-2">数据导出设置</h3>
+
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-gray-800">退出时自动导出</p>
+                <p className="text-sm text-gray-500">
+                  应用退出时自动导出数据库到JSON文件
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoExportOnExit}
+                  onChange={(e) => setAutoExportOnExit(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            <div className="mt-3">
+              <button
+                onClick={handleManualExport}
+                disabled={isManualExporting}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                {isManualExporting ? (
+                  <Download className="w-4 h-4 animate-pulse" />
+                ) : (
+                  <FileCheck className="w-4 h-4" />
+                )}
+                <span>{isManualExporting ? '导出中...' : '立即导出'}</span>
+              </button>
+              
+              {exportMessage && (
+                <div className={`mt-2 p-2 rounded-lg text-sm ${
+                  exportMessage.includes('成功') 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : exportMessage.includes('失败') || exportMessage.includes('出错')
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  {exportMessage}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
